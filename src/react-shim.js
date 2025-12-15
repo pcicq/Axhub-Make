@@ -1,0 +1,41 @@
+const R = window.React;
+
+export default R;
+
+export const {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  useContext,
+  useReducer,
+  useLayoutEffect,
+  useImperativeHandle,
+  useDebugValue,
+  useDeferredValue,
+  useTransition,
+  useId,
+  useSyncExternalStore,
+  useInsertionEffect,
+
+  forwardRef,
+  memo,
+  createElement,
+  Fragment,
+  Component,
+  PureComponent,
+  createContext,
+  createRef,
+  lazy,
+  Suspense,
+  StrictMode,
+  Profiler,
+  Children,
+  cloneElement,
+  isValidElement,
+  createFactory,
+  startTransition,
+  act,
+  version,
+} = R;

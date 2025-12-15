@@ -1,0 +1,46 @@
+/**
+ * 【重要提示】
+ * 本 CSS 文件仅用于演示规范代码结构，样式设计仅供参考
+ * 实际开发时，请根据您的具体需求设计和实现样式
+ * 不要直接复制本演示的设计风格，应该创建符合您项目需求的独特设计
+ */
+
+.ecommerce-dashboard {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.metric-cards .ant-card {
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.metric-cards .ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.metric-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 覆盖 Ant Design 默认样式以适应深色背景或特定主题 */
+.ant-statistic-title {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.ant-table-wrapper {
+  background: white;
+  border-radius: 8px;
+}

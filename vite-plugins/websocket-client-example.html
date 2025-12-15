@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket 客户端示例</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .status {
+      padding: 10px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    .connected { background: #d4edda; color: #155724; }
+    .disconnected { background: #f8d7da; color: #721c24; }
+    #messages {
+      border: 1px solid #ddd;
+      padding: 10px;
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      background: #f9f9f9;
+    }
+    .message {
+      padding: 5px;
+      margin: 5px 0;
+      border-left: 3px solid #007bff;
+      background: white;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>WebSocket 客户端示例</h1>
+  
+  <div id="status" class="status disconnected">未连接</div>
+  
+  <div id="messages"></div>
+  
+  <div>
+    <input type="text" id="messageInput" placeholder="输入消息..." style="width: 60%;">
+    <button onclick="sendMessage()">发送</button>
+    <button onclick="sendPing()">Ping</button>
+    <button onclick="sendBroadcast()">广播</button>
+  </div>
+
+  <script>
+    let ws;
+    const messagesDiv = document.getElementById('messages');
+    const statusDiv = document.getElementById('status');
+    const messageInput = document.getElementById('messageInput');
+
+    // 连接 WebSocket
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('WebSocket 连接已建立');
+        statusDiv.textContent = '已连接';
+        statusDiv.className = 'status connected';
+        addMessage('系统', '连接成功');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('收到消息:', data);
+          addMessage('服务器', JSON.stringify(data, null, 2));
+        } catch (err) {
+          addMessage('服务器', event.data);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket 连接已关闭');
+        statusDiv.textContent = '连接已断开';
+        statusDiv.className = 'status disconnected';
+        addMessage('系统', '连接已断开');
+        
+        // 5秒后自动重连
+        setTimeout(connect, 5000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket 错误:', error);
+        addMessage('系统', '连接错误');
+      };
+    }
+
+    // 添加消息到显示区域
+    function addMessage(from, content) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+      messageDiv.innerHTML = `<strong>${from}:</strong> <pre style="margin: 5px 0;">${content}</pre>`;
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // 发送消息
+    function sendMessage() {
+      const message = messageInput.value.trim();
+      if (!message) return;
+
+      const data = {
+        type: 'echo',
+        data: message
+      };
+
+      ws.send(JSON.stringify(data));
+      addMessage('我', message);
+      messageInput.value = '';
+    }
+
+    // 发送 Ping
+    function sendPing() {
+      ws.send(JSON.stringify({ type: 'ping' }));
+      addMessage('我', 'ping');
+    }
+
+    // 发送广播
+    function sendBroadcast() {
+      const message = messageInput.value.trim() || '广播消息';
+      ws.send(JSON.stringify({ 
+        type: 'broadcast', 
+        data: message 
+      }));
+      addMessage('我', `广播: ${message}`);
+      messageInput.value = '';
+    }
+
+    // 回车发送
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // 页面加载时自动连接
+    connect();
+  </script>
+</body>
+</html>

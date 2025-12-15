@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>{{TITLE}}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    /* 全局样式 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    #root {
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+      /* min-height: 100vh; */
+      overflow: visible;
+    }
+
+    /* 如果是元素演示页面（可能被内嵌到 iframe），设置固定尺寸 */
+    body.is-element-page #root {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 平板和手机模式隐藏滚动条 */
+    @media (max-width: 1024px) {
+      ::-webkit-scrollbar {
+        display: none;
+      }
+
+      html,
+      body {
+        scrollbar-width: none;
+        /* Firefox */
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <script>
+    // 全局错误捕获
+    (function () {
+      // 等待 React 组件加载完成后再使用 showErrorDialog
+      function showErrorDialog(message, stack) {
+        // 如果 window.showErrorDialog 已经由 React 组件设置，直接使用
+        if (typeof window.showErrorDialog === 'function') {
+          window.showErrorDialog(message, stack);
+        } else {
+          // 否则先输出到控制台，等待 React 组件加载
+          console.error('[Error Dialog] React 组件未就绪，错误信息:', message);
+          console.error('[Error Dialog] 堆栈信息:', stack);
+        }
+      }
+
+      // 捕获未处理的错误
+      window.addEventListener('error', function (event) {
+        // 详细日志
+        console.error('捕获到错误事件:', {
+          message: event.message,
+          error: event.error,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        });
+
+        try {
+          let message = event.message || '发生了一个未知错误';
+          let stack = '';
+
+          // 尝试从不同来源获取堆栈信息
+          if (event.error && event.error.stack) {
+            stack = event.error.stack;
+          } else if (event.error && event.error.message) {
+            message = event.error.message;
+            stack = '无详细堆栈信息';
+          } else if (event.filename) {
+            stack = event.filename + ':' + event.lineno + ':' + event.colno;
+          } else {
+            stack = '无堆栈信息';
+          }
+
+          showErrorDialog(message, stack);
+        } catch (err) {
+          console.error('[Error Handler] 处理错误失败:', err);
+        }
+
+        // 阻止默认的错误处理
+        event.preventDefault();
+      });
+
+      // 捕获未处理的 Promise 拒绝
+      window.addEventListener('unhandledrejection', function (event) {
+        console.error('捕获到未处理的 Promise 拒绝:', event.reason);
+
+        try {
+          const message = event.reason && event.reason.message
+            ? event.reason.message
+            : String(event.reason || '未知 Promise 拒绝');
+          const stack = event.reason && event.reason.stack ? event.reason.stack : '';
+
+          showErrorDialog('Promise 拒绝: ' + message, stack);
+        } catch (err) {
+          console.error('[Error Handler] 处理 Promise 拒绝失败:', err);
+        }
+
+        // 阻止默认的错误处理
+        event.preventDefault();
+      });
+
+      // 拦截 console.warn 和 console.error 来捕获库的警告和错误
+      (function () {
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        console.error = function () {
+          const args = Array.prototype.slice.call(arguments);
+          const message = args.join(' ');
+
+          // 检查是否是重要错误
+          if (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed')) {
+            try {
+              // 获取调用堆栈
+              const stack = new Error().stack || '无堆栈信息';
+              showErrorDialog('错误: ' + message, stack);
+            } catch (err) {
+              // 如果显示对话框失败，继续使用原始方法
+            }
+          }
+
+          // 调用原始的 console.error
+          originalError.apply(console, args);
+        };
+      })();
+
+      console.log('%c[Dev Template] 全局错误捕获已启用', 'color: #52c41a; font-weight: bold;');
+    })();
+  </script>
+
+  <script>
+    // 判断是否为元素演示页面（在 body 加载后执行）
+    (function () {
+      if (document.body && window.location.pathname.includes('/elements/')) {
+        document.body.classList.add('is-element-page');
+      } else if (!document.body) {
+        // 如果 body 还没加载，等待 DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function () {
+          if (window.location.pathname.includes('/elements/')) {
+            document.body.classList.add('is-element-page');
+          }
+        });
+      }
+    })();
+  </script>
+
+  <div id="root"></div>
+
+  <!-- 加载 bootstrap JS（会自动挂载到 window.DevTemplateBootstrap） -->
+  <script type="module" src="/assets/dev-template-bootstrap.js"></script>
+
+  <script type="module">
+    // 等待 bootstrap 加载完成
+    function waitForBootstrap() {
+      if (window.DevTemplateBootstrap) {
+        const { renderComponent, React, ReactDOM } = window.DevTemplateBootstrap;
+
+        // 将 React 和 ReactDOM 挂载到全局，让组件使用同一个实例
+        window.React = React;
+        window.ReactDOM = ReactDOM;
+
+        console.log('[Dev Template] Bootstrap 已就绪，React 已挂载到全局');
+
+        // 动态导入组件（此时组件会使用 window.React）
+        import('{{ENTRY}}').then(module => {
+          const Component = module.Component || module.default;
+
+          // 导出到全局（供调试使用）
+          window.AxhubDevComponent = Component;
+
+          console.log('[Dev Template] Component 已加载:', Component);
+          console.log('[Dev Template] 开始渲染');
+
+          // 渲染组件
+          renderComponent(Component);
+        }).catch(err => {
+          console.error('[Dev Template] 组件加载失败:', err);
+        });
+      } else {
+        setTimeout(waitForBootstrap, 10);
+      }
+    }
+
+    waitForBootstrap();
+  </script>
+
+</body>
+
+</html>

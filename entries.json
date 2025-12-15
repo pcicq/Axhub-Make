@@ -1,0 +1,14 @@
+{
+  "js": {
+    "elements/demo-button": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/elements/demo-button/index.tsx",
+    "elements/demo-line-chart": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/elements/demo-line-chart/index.tsx",
+    "pages/demo-antd": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/pages/demo-antd/index.tsx",
+    "pages/demo-app-home": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/pages/demo-app-home/index.tsx"
+  },
+  "html": {
+    "elements/demo-button": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/elements/demo-button/index.html",
+    "elements/demo-line-chart": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/elements/demo-line-chart/index.html",
+    "pages/demo-antd": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/pages/demo-antd/index.html",
+    "pages/demo-app-home": "/Users/jianzhoulin/rd/Axhub Runtime/apps/axhub-make/src/pages/demo-app-home/index.html"
+  }
+}
