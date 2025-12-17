@@ -8,6 +8,7 @@ import { axhubComponentEnforcer } from './vite-plugins/axhubComponentEnforcer';
 import { virtualHtmlPlugin } from './vite-plugins/virtualHtml';
 import { websocketPlugin } from './vite-plugins/websocketPlugin';
 import { injectStablePageIds } from './vite-plugins/injectStablePageIds';
+import { fileSystemApiPlugin } from './vite-plugins/fileSystemApiPlugin';
 
 const entriesPath = path.resolve(process.cwd(), 'entries.json');
 let entries = { js: {}, html: {} };
@@ -38,6 +39,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
       injectStablePageIds(), // 注入稳定 ID（所有模式都启用）
       virtualHtmlPlugin(),
       websocketPlugin(),
+      fileSystemApiPlugin(),
       forceInlineDynamicImportsOff(isIifeBuild),
       isIifeBuild
         ? react({
@@ -59,19 +61,19 @@ export default defineConfig(async (): Promise<UserConfig> => {
       alias: [
         !isIifeBuild && {
           find: /^react\/.*/,
-          replacement: path.resolve(__dirname, 'src/react-shim.js')
+          replacement: path.resolve(__dirname, 'src/common/react-shim.js')
         },
         !isIifeBuild && {
           find: /^react-dom\/.*/,
-          replacement: path.resolve(__dirname, 'src/react-dom-shim.js')
+          replacement: path.resolve(__dirname, 'src/common/react-dom-shim.js')
         },
         !isIifeBuild && {
           find: 'react',
-          replacement: path.resolve(__dirname, 'src/react-shim.js')
+          replacement: path.resolve(__dirname, 'src/common/react-shim.js')
         },
         !isIifeBuild && {
           find: 'react-dom',
-          replacement: path.resolve(__dirname, 'src/react-dom-shim.js')
+          replacement: path.resolve(__dirname, 'src/common/react-dom-shim.js')
         }
       ].filter(Boolean) as { find: string | RegExp; replacement: string }[]
     },

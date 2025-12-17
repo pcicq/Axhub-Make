@@ -44,12 +44,14 @@ export function handleEntriesApi(req: IncomingMessage, res: ServerResponse): boo
           const name = key.replace('elements/', '');
           const filePath = scannedEntries.js[key];
           const displayName = getDisplayName(filePath);
+          const isReference = name.startsWith('ref-');
           result.elements.push({
             name,
             displayName: displayName || name,
             demoUrl: `/${key}/index.html`,
             specUrl: `/${key}/spec.html`,
-            jsUrl: `/build/${key}.js`
+            jsUrl: `/build/${key}.js`,
+            isReference
           });
         }
       });
@@ -59,12 +61,14 @@ export function handleEntriesApi(req: IncomingMessage, res: ServerResponse): boo
           const name = key.replace('pages/', '');
           const filePath = scannedEntries.js[key];
           const displayName = getDisplayName(filePath);
+          const isReference = name.startsWith('ref-');
           result.pages.push({
             name,
             displayName: displayName || name,
             demoUrl: `/${key}/index.html`,
             specUrl: `/${key}/spec.html`,
-            jsUrl: `/build/${key}.js`
+            jsUrl: `/build/${key}.js`,
+            isReference
           });
         }
       });
