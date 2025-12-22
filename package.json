@@ -1,8 +1,8 @@
 {
   "name": "axhub-make",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
-  "description": "Axhub Make（原型资源生产工厂）",
+  "description": "Axhub Make（AI 辅助生成原型工具）",
   "type": "module",
   "scripts": {
     "dev": "vite",

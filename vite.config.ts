@@ -14,6 +14,40 @@ import { fileSystemApiPlugin } from './vite-plugins/fileSystemApiPlugin';
 
 // 服务 admin 目录下的静态文件
 function serveAdminPlugin(): Plugin {
+  // 检测项目结构：判断当前目录是否在 apps/xxx/ 下
+  const currentDir = __dirname;
+  const appsMatch = currentDir.match(/[\/\\]apps[\/\\]([^\/\\]+)/);
+  
+  let projectPrefix = '';
+  if (appsMatch) {
+    // 在 apps/xxx/ 结构下，说明是混合项目
+    // 需要找到包含 entries.json 的项目目录（通常是主项目）
+    const rootDir = currentDir.split(/[\/\\]apps[\/\\]/)[0];
+    const appsDir = path.join(rootDir, 'apps');
+    
+    if (fs.existsSync(appsDir)) {
+      const appFolders = fs.readdirSync(appsDir);
+      for (const folder of appFolders) {
+        const folderPath = path.join(appsDir, folder);
+        const entriesPath = path.join(folderPath, 'entries.json');
+        if (fs.existsSync(entriesPath)) {
+          projectPrefix = `apps/${folder}/`;
+          break;
+        }
+      }
+    }
+  }
+  
+  const isMixedProject = !!projectPrefix;
+  
+  // 注入到 HTML 的脚本
+  const injectScript = `
+  <script>
+    // 项目路径配置（根据项目结构自动检测）
+    window.__PROJECT_PREFIX__ = '${projectPrefix}';
+    window.__IS_MIXED_PROJECT__ = ${isMixedProject};
+  </script>`;
+  
   return {
     name: 'serve-admin-plugin',
     configureServer(server: any) {
@@ -24,8 +58,11 @@ function serveAdminPlugin(): Plugin {
         if (req.url === '/' || req.url === '/index.html') {
           const indexPath = path.join(adminDir, 'index.html');
           if (fs.existsSync(indexPath)) {
+            let html = fs.readFileSync(indexPath, 'utf8');
+            // 注入项目路径配置
+            html = html.replace('</head>', `${injectScript}\n</head>`);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.end(fs.readFileSync(indexPath, 'utf8'));
+            res.end(html);
             return;
           }
         }
@@ -34,8 +71,11 @@ function serveAdminPlugin(): Plugin {
         if (req.url && req.url.match(/^\/[^/]+\.html$/)) {
           const htmlPath = path.join(adminDir, req.url);
           if (fs.existsSync(htmlPath)) {
+            let html = fs.readFileSync(htmlPath, 'utf8');
+            // 注入项目路径配置
+            html = html.replace('</head>', `${injectScript}\n</head>`);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.end(fs.readFileSync(htmlPath, 'utf8'));
+            res.end(html);
             return;
           }
         }
