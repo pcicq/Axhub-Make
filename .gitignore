@@ -23,7 +23,6 @@ vite.config.*.timestamp-*
 .env.development
 
 # IDE and editors
-.vscode/
 .idea/
 .obsidian/
 /.drafts/
