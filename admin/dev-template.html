@@ -55,15 +55,18 @@
   <script>
     // 全局错误捕获
     (function () {
+      // 保存原始的 console 方法
+      const originalConsoleError = console.error;
+      
       // 等待 React 组件加载完成后再使用 showErrorDialog
       function showErrorDialog(message, stack) {
         // 如果 window.showErrorDialog 已经由 React 组件设置，直接使用
         if (typeof window.showErrorDialog === 'function') {
           window.showErrorDialog(message, stack);
         } else {
-          // 否则先输出到控制台，等待 React 组件加载
-          console.error('[Error Dialog] React 组件未就绪，错误信息:', message);
-          console.error('[Error Dialog] 堆栈信息:', stack);
+          // 否则使用原始的 console.error 输出（避免循环）
+          originalConsoleError.call(console, '[Error Dialog] React 组件未就绪，错误信息:', message);
+          originalConsoleError.call(console, '[Error Dialog] 堆栈信息:', stack);
         }
       }
 
@@ -125,25 +128,25 @@
       // 拦截 console.warn 和 console.error 来捕获库的警告和错误
       (function () {
         const originalWarn = console.warn;
-        const originalError = console.error;
 
         console.error = function () {
           const args = Array.prototype.slice.call(arguments);
           const message = args.join(' ');
 
-          // 检查是否是重要错误
-          if (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed')) {
+          // 先调用原始的 console.error，避免循环
+          originalConsoleError.apply(console, args);
+
+          // 检查是否是重要错误，并且不是来自 Error Dialog 本身
+          if (!message.includes('[Error Dialog]') && 
+              (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed'))) {
             try {
               // 获取调用堆栈
               const stack = new Error().stack || '无堆栈信息';
               showErrorDialog('错误: ' + message, stack);
             } catch (err) {
-              // 如果显示对话框失败，继续使用原始方法
+              // 如果显示对话框失败，静默处理
             }
           }
-
-          // 调用原始的 console.error
-          originalError.apply(console, args);
         };
       })();
 

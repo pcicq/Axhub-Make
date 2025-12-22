@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const root = path.resolve(__dirname, '..', 'src');
-const groups = ['elements', 'pages'];
+const groups = ['elements', 'pages', 'themes'];
 const entries = { js: {}, html: {} };
 
 for (const group of groups) {

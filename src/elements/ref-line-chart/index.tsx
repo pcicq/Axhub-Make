@@ -1,12 +1,18 @@
 /**
  * @name ECharts 折线图
  * 
+ * 参考资料：
+ * - /rules/development-standards.md
+ * - /rules/axure-api-guide.md
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * - /assets/libraries/echarts.md (ECharts)
+ * 
  * ==================== 重要说明 ====================
- * 本文件是演示文件，用于展示 Axhub 组件开发规范
+ * 本文件是演示文件，用于展示 Axhub 元素开发规范
  * 文件中的详细注释【规范说明】仅用于教学和说明规范要求
  * 
  * 实际开发时：
- * 1. 只需保留 @name 注释
+ * 1. 只需保留 @name 和 参考资料 注释
  * 2. 不需要添加如此详细的规范说明注释
  * 3. 代码应该简洁清晰，避免冗余注释
  * 4. 只在复杂逻辑处添加必要的业务说明注释
@@ -80,12 +86,12 @@ const VAR_LIST: KeyDesc[] = [
 // 【规范说明】配置项列表定义
 // 必须包含 initialValue，并清晰说明每个配置项的用途
 const CONFIG_LIST: ConfigItem[] = [
-  { type: 'input', attributeId: 'title', displayName: '图表标题', info: '显示在图表顶部的标题文本' },
-  { type: 'input', attributeId: 'xAxisName', displayName: 'X轴名称', info: 'X轴的标签名称' },
-  { type: 'input', attributeId: 'yAxisName', displayName: 'Y轴名称', info: 'Y轴的标签名称' },
-  { type: 'colorPicker', attributeId: 'primaryColor', displayName: '主题色', info: '图表的主色调' },
-  { type: 'checkbox', attributeId: 'showLegend', displayName: '显示图例', info: '是否显示图例' },
-  { type: 'checkbox', attributeId: 'showTooltip', displayName: '显示提示框', info: '是否显示鼠标悬停提示' }
+  { type: 'input', attributeId: 'title', displayName: '图表标题', info: '显示在图表顶部的标题文本', initialValue: '折线图' },
+  { type: 'input', attributeId: 'xAxisName', displayName: 'X轴名称', info: 'X轴的标签名称', initialValue: 'X轴' },
+  { type: 'input', attributeId: 'yAxisName', displayName: 'Y轴名称', info: 'Y轴的标签名称', initialValue: 'Y轴' },
+  { type: 'colorPicker', attributeId: 'primaryColor', displayName: '主题色', info: '图表的主色调', initialValue: '#1890ff' },
+  { type: 'checkbox', attributeId: 'showLegend', displayName: '显示图例', info: '是否显示图例', initialValue: true },
+  { type: 'checkbox', attributeId: 'showTooltip', displayName: '显示提示框', info: '是否显示鼠标悬停提示', initialValue: true }
 ];
 
 // 【规范说明】数据项列表定义
@@ -342,4 +348,3 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function LineChart(innerPr
 // 必须使用 export default Component（大小写敏感）
 // 这是 Axhub 平台集成的必要条件
 export default Component;
-

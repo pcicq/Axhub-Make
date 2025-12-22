@@ -1,12 +1,17 @@
 /**
  * @name 按钮元素
  * 
+ * 参考资料：
+ * - /rules/development-standards.md
+ * - /rules/axure-api-guide.md
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * 
  * ==================== 重要说明 ====================
  * 本文件是演示文件，用于展示 Axhub 元素开发规范
  * 文件中的详细注释【规范说明】仅用于教学和说明规范要求
  * 
  * 实际开发时：
- * 1. 只需保留 @name 注释
+ * 1. 只需保留 @name 和 参考资料 注释
  * 2. 不需要添加如此详细的规范说明注释
  * 3. 代码应该简洁清晰，避免冗余注释
  * 4. 只在复杂逻辑处添加必要的业务说明注释
@@ -124,6 +129,8 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function AxhubButton(inner
   // 使用类型检查避免使用 || 运算符（会误判 0、false 等值）
   const initialCount = typeof configSource.initialCount === 'number' ? configSource.initialCount : 0;
   const defaultMessage = typeof configSource.message === 'string' && configSource.message ? configSource.message : '这是一个 React 元素示例';
+  const titleText = typeof configSource.title === 'string' && configSource.title ? configSource.title : 'React 元素示例';
+  const buttonText = typeof configSource.buttonText === 'string' && configSource.buttonText ? configSource.buttonText : '点击我';
 
   // 【规范说明】State 管理
   // 避免使用 ES6 解构，使用数组索引访问 state 和 setter
@@ -221,10 +228,10 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function AxhubButton(inner
   // 避免在 JSX 中直接定义函数，使用预定义的 useCallback 函数
   return (
     <div className="axhub-button-container">
-      <h2 className="axhub-button-title" style={{ color: primaryColor }}>{configSource.title || 'React 元素示例'}</h2>
+      <h2 className="axhub-button-title" style={{ color: primaryColor }}>{titleText}</h2>
       <div className="axhub-button-controls">
         <button type="button" className="axhub-button-primary" style={{ backgroundColor: primaryColor }} onClick={handlePrimaryClick}>
-          {(configSource.buttonText || '点击我') + ' (计数: ' + count + ')'}
+          {buttonText + ' (计数: ' + count + ')'}
         </button>
         <button type="button" className="axhub-button-secondary" onClick={handleResetClick}>
           重置
@@ -254,4 +261,3 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function AxhubButton(inner
 // 必须使用 export default Component（大小写敏感）
 // 这是 Axhub 平台集成的必要条件
 export default Component;
-

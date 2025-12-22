@@ -5,6 +5,17 @@ import type { IncomingMessage } from 'http';
 export interface WebSocketMessage {
   type: string;
   data?: any;
+  payload?: any;
+  client?: string;
+  version?: string;
+}
+
+export interface ClientMeta {
+  id: number;
+  type: string;  // 'figma' | 'vscode' | 'browser' | 'unknown'
+  version?: string;
+  address?: string;
+  connectedAt: number;
 }
 
 /**
@@ -13,7 +24,7 @@ export interface WebSocketMessage {
 export function websocketPlugin(): Plugin {
   let wss: WebSocketServer | null = null;
   const clients = new Set<WebSocket>();
-  const clientMeta = new Map<WebSocket, { id: number; address?: string; connectedAt: number }>();
+  const clientMeta = new Map<WebSocket, ClientMeta>();
   let nextClientId = 1;
   const WS_PATH = '/ws';
 
@@ -41,10 +52,22 @@ export function websocketPlugin(): Plugin {
       server.httpServer?.on('upgrade', handleUpgrade);
 
       wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-        console.log('[WebSocket] 新客户端连接:', req.socket.remoteAddress);
+        // 从 URL 查询参数中获取客户端类型
+        const url = new URL(req.url || '', 'http://localhost');
+        const clientType = url.searchParams.get('client') || 'unknown';
+        const clientVersion = url.searchParams.get('version') || undefined;
+        
+        console.log('[WebSocket] 新客户端连接:', {
+          type: clientType,
+          version: clientVersion,
+          address: req.socket.remoteAddress
+        });
+        
         clients.add(ws);
-        const meta = {
+        const meta: ClientMeta = {
           id: nextClientId++,
+          type: clientType,
+          version: clientVersion,
           address: req.socket.remoteAddress,
           connectedAt: Date.now()
         };
@@ -120,12 +143,24 @@ export function websocketPlugin(): Plugin {
 
         const list = Array.from(clientMeta.values()).map((item) => ({
           id: item.id,
+          type: item.type,
+          version: item.version,
           address: item.address,
           connectedAt: item.connectedAt
         }));
+        
+        // 统计各类型客户端数量
+        const stats = Array.from(clientMeta.values()).reduce((acc, item) => {
+          acc[item.type] = (acc[item.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
 
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ clients: list }));
+        res.end(JSON.stringify({ 
+          clients: list,
+          stats,
+          total: list.length
+        }));
       });
 
       // HTTP API: 发送消息给全部客户端
@@ -145,9 +180,12 @@ export function websocketPlugin(): Plugin {
           try {
             const parsedBody = JSON.parse(body || '{}');
             const { type } = parsedBody;
+            const payload = (parsedBody as any).payload;
+            const targetClientType = (parsedBody as any).targetClientType;
+            const targetClientTypes = (parsedBody as any).targetClientTypes;
             // 兼容历史字段：payload / data
-            const data = (parsedBody as any).payload !== undefined
-              ? (parsedBody as any).payload
+            const data = payload !== undefined
+              ? payload
               : (parsedBody as any).data;
 
             // 验证 type
@@ -210,10 +248,26 @@ export function websocketPlugin(): Plugin {
               }
             }
 
-            const clientCount = clients.size;
+            const allClientCount = clients.size;
+            const normalizedTargetClientTypes = Array.isArray(targetClientTypes)
+              ? targetClientTypes.filter((v) => typeof v === 'string' && v)
+              : typeof targetClientType === 'string' && targetClientType
+                ? [targetClientType]
+                : [];
+
+            const targetClients = normalizedTargetClientTypes.length === 0
+              ? clients
+              : new Set(
+                Array.from(clients).filter((ws) => {
+                  const meta = clientMeta.get(ws);
+                  return meta?.type && normalizedTargetClientTypes.includes(meta.type);
+                })
+              );
+
+            const targetClientCount = targetClients.size;
             
             // 如果没有客户端连接
-            if (clientCount === 0) {
+            if (allClientCount === 0) {
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.end(JSON.stringify({ ok: true, sent: 0, warning: 'no clients connected' }));
@@ -223,13 +277,21 @@ export function websocketPlugin(): Plugin {
             console.log('[WebSocket] /api/ws/send 请求:', {
               type,
               hasPayload: data !== undefined,
-              clientCount,
+              clientCount: allClientCount,
+              targetClientCount,
+              targetClientTypes: normalizedTargetClientTypes,
               bodyKeys: parsedBody && typeof parsedBody === 'object' ? Object.keys(parsedBody) : []
             });
 
             // 立即返回成功状态（不等待渲染完成）
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.end(JSON.stringify({ ok: true, sent: clientCount }));
+            res.end(JSON.stringify({
+              ok: true,
+              sent: targetClientCount,
+              ...(normalizedTargetClientTypes.length > 0 && targetClientCount === 0
+                ? { warning: 'no target clients connected' }
+                : {})
+            }));
 
             // 异步广播消息（不阻塞响应）
             setImmediate(() => {
@@ -239,11 +301,12 @@ export function websocketPlugin(): Plugin {
                   type,
                   ...(parsedBody.widgetId ? { widgetId: parsedBody.widgetId } : {}),
                   ...(parsedBody.pageId ? { pageId: parsedBody.pageId } : {}),
+                  ...(payload !== undefined ? { payload } : {}),
                   data,
                   ...(parsedBody.blurImages !== undefined ? { blurImages: parsedBody.blurImages } : {}),
                   ...(parsedBody.metadata ? { metadata: parsedBody.metadata } : {})
                 };
-                const sentCount = broadcast(clients, message);
+                const sentCount = broadcast(targetClients, message);
                 console.log('[WebSocket] 消息已广播:', { type, sentCount });
               } catch (err) {
                 console.error('[WebSocket] 广播消息失败:', err);
@@ -282,6 +345,30 @@ function handleMessage(
   clients: Set<WebSocket>
 ) {
   switch (message.type) {
+    case 'identify':
+      // 客户端身份识别（支持连接后再发送身份信息）
+      {
+        const meta = Array.from(clients).find(c => c === ws);
+        if (meta) {
+          const clientInfo = clientMeta.get(ws);
+          if (clientInfo) {
+            clientInfo.type = message.client || clientInfo.type;
+            clientInfo.version = message.version || clientInfo.version;
+            clientMeta.set(ws, clientInfo);
+            console.log('[WebSocket] 客户端已识别:', {
+              id: clientInfo.id,
+              type: clientInfo.type,
+              version: clientInfo.version
+            });
+          }
+        }
+        ws.send(JSON.stringify({ 
+          type: 'identified',
+          message: '身份识别成功'
+        }));
+      }
+      break;
+
     case 'ping':
       // 心跳检测
       ws.send(JSON.stringify({ type: 'pong' }));

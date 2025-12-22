@@ -1,6 +1,6 @@
 # 开发规范
 
-本文档定义 Axhub 组件和页面的代码编写规范。
+本文档定义 Axhub 元素和页面原型的代码编写规范。
 
 ## 📁 项目结构
 
@@ -26,75 +26,152 @@ src/
 
 - **入口固定**：每个组件/页面的入口必须是 `index.tsx`
 - **规格文档**：必须包含 `spec.md` 说明功能和接口
-- **模块分离**：复杂项目鼓励按模块拆分文件，例如：
-  ```
-  elements/complex-table/
-  ├── index.tsx          # 入口
-  ├── spec.md            # 规格
-  ├── style.css          # 样式
-  ├── components/        # 子组件
-  │   ├── Header.tsx
-  │   └── Row.tsx
-  ├── hooks/             # 自定义 Hooks
-  │   └── useTableData.ts
-  └── utils/             # 工具函数
-      └── formatters.ts
-  ```
+- **模块分离**：复杂项目可按模块拆分文件（components/、hooks/、utils/ 等）
 
 ## 🎯 核心要求
 
 ### 1. 文件头部注释
 
-**每个文件顶部必须包含项目名称**（通常与用户使用的语言一致）
+**每个 index.tsx 文件顶部必须包含以下注释**：
 
 ```typescript
 /**
- * @name Ant Design 下拉选择框
+ * @name 组件显示名称
+ * 
+ * 参考资料：
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * - /src/themes/antd/designToken.json (Ant Design 主题)
+ * - /assets/libraries/antd.md (Ant Des
  */
 ```
 
+**注释说明**：
+- `@name`：组件的中文显示名称（必需）
+- `参考资料`：列出所有与开发相关的参考文档路径（如有）
+  - 参考文档：用户提供的设计规范、业务文档等
+  - 主题配置：如 `/src/themes/antd/designToken.json`，需注明主题名称
+  - 前端库文档：如 `/assets/libraries/antd.md`，需注明库名称
+  - 仅列出与代码实现相关的资料，纯设计类资料可省略
+
 ### 2. 依赖引用规范
 
-**可以直接引用 React 和第三方库**
-
 ```typescript
-// ✅ 正确 - 直接导入 React
+// ✅ 直接导入 React
 import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 
-// ✅ 正确 - 导入第三方库（需要协助用户安装依赖）
-import { Select } from 'antd';
-import { Button } from '@mui/material';
-```
-
-**注意事项**：
-- 使用第三方库时，需要协助用户安装相应的 npm 依赖
-- 确保导入的库与项目的依赖管理文件兼容
-- **按需导入**：优先使用按需导入方式，避免导入整个库，以减小打包体积
-
-**按需导入示例**：
-
-```typescript
-// ✅ 推荐 - 按需导入具体组件
+// ✅ 导入第三方库（按需导入）
 import { Select, Button, Input } from 'antd';
 
 // ❌ 不推荐 - 导入整个库
 import * as antd from 'antd';
 ```
 
-### 3. 组件接口规范
+**注意事项**：
+- 使用第三方库时，需协助用户安装 npm 依赖
+- 优先使用按需导入，减小打包体积
 
-**必须使用 forwardRef 并实现 AxhubHandle 接口**
+### 3. 前端库使用
 
+**当用户指定使用特定前端库时，这是一个建议而非强制要求**
+
+前端库文档路径会在任务开始时提供（通常在 `/assets/libraries/` 目录下）。
+
+**文档内容包括**：
+- 组件库的版本信息
+- 组件使用说明和 API
+- 代码示例和最佳实践
+- 注意事项和常见问题
+
+**⚠️ 重要**：
+- **如果使用用户指定的前端库，必须完整阅读对应的库文档，不要跳过**
+- 严格按照文档中的版本和 API 进行开发
+- 参考文档中的示例代码
+- 遵循文档中的最佳实践
+
+**灵活性**：
+- 用户指定的前端库是建议，不是强制要求
+- 如果其他前端库更适合实现需求，可以使用其他库
+- **核心目标是帮助用户实现需求，选择最合适的技术方案**
+- 如果选择使用其他库，需要说明理由
+
+**使用建议**：
+- 优先使用库提供的组件，避免重复造轮子
+- 注意库的版本兼容性
+- 按需导入组件，减小打包体积
+
+### 4. Design Tokens 使用
+
+**当用户指定主题时，必须使用对应的 Design Tokens**
+
+主题配置文件路径会在任务开始时提供（通常在 `/src/themes/[主题名]/designToken.json`）。
+
+**Design Tokens 通常包含**：
+- **颜色（colors）**：品牌色、文本色、边框色、背景色
+- **圆角（borderRadius）**：xs、sm、default、lg
+- **字体（typography）**：字号、字重、行高
+- **阴影（shadows）**：sm、default、lg
+- **间距（spacing）**：各种尺寸的间距值
+
+**⚠️ 重要**：
+- **必须完整阅读 Design Tokens 文件，不要跳过**
+- 在样式中使用 Design Tokens 定义的值
+- 保持设计的一致性
+
+**使用示例**：
 ```typescript
+// 从 designToken.json 读取值并应用到样式中
+const primaryColor = '#1677ff'; // 来自 colors.brand.primary
+const borderRadius = '6px';     // 来自 borderRadius.default
+```
+
+### 5. 参考文档处理
+
+**用户需求中可能包含参考文档，需要区分处理**：
+
+- **与开发相关的文档**（必须关注）：
+  - API 接口文档
+  - 数据结构说明
+  - 交互逻辑说明
+  - 技术规范
+
+- **与开发无关的文档**（可以忽略）：
+  - 纯视觉设计稿
+  - 品牌设计指南
+  - 营销文案
+
+**处理方式**：
+- 在 index.tsx 头部注释的"参考资料"中列出所有与开发相关的文档路径
+- 根据文档内容实现相应功能
+
+### 6. Axure API 使用（可选）
+
+**Axure API 是可选的**，仅在需要与 Axure 原型交互时使用。
+
+**使用场景**：
+- 需要与 Axure 原型进行交互
+- 需要在配置面板中提供可配置项
+- 需要接收外部数据源
+- 需要触发事件或响应动作
+
+**不使用场景**：
+- 纯展示型组件
+- 不需要与外部交互的独立组件
+- 标准 React 组件即可满足需求
+
+**⚠️ 重要**：
+- **如果用户要求使用 Axure API，必须完整阅读 [Axure API 使用指南](./axure-api-guide.md)，不要跳过**
+- 严格按照指南中的接口规范实现
+- 参考指南中的示例代码
+
+**快速示例**：
+
+使用 Axure API：
+```typescript
+import React, { forwardRef, useImperativeHandle } from 'react';
 import type { AxhubProps, AxhubHandle } from '../../common/axhub-types';
 
-var Component = forwardRef<AxhubHandle, AxhubProps>(function MyComponent(innerProps, ref) {
-  const dataSource = innerProps && innerProps.data ? innerProps.data : {};
-  const configSource = innerProps && innerProps.config ? innerProps.config : {};
-  const onEventHandler = typeof innerProps.onEvent === 'function' 
-    ? innerProps.onEvent 
-    : function () { return undefined; };
-
+const Component = forwardRef<AxhubHandle, AxhubProps>(function MyComponent(innerProps, ref) {
+  // 实现 Axure API 接口
   useImperativeHandle(ref, function () {
     return {
       getVar: function (name: string) { /* ... */ },
@@ -105,197 +182,59 @@ var Component = forwardRef<AxhubHandle, AxhubProps>(function MyComponent(innerPr
       configList: CONFIG_LIST,
       dataList: DATA_LIST
     };
-  }, [/* 依赖项 */]);
+  }, []);
 
   return <div>Component Content</div>;
 });
+
+export default Component;
+```
+
+不使用 Axure API：
+```typescript
+const Component = function MyComponent() {
+  return <div>Component Content</div>;
+}
+
+export default Component;
 ```
 
 ## 📋 代码结构规范
 
-### 文件结构
+### 基本文件结构
 
 ```typescript
 /**
  * @name 组件显示名称
+ * 
+ * 参考资料：
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * - /src/themes/antd/designToken.json (Ant Design 主题)
+ * - /assets/libraries/antd.md (Ant Design 组件库)
  */
 
 // 1. 导入样式（可选）
 import './style.css';
 
 // 2. 导入 React 和 Hooks
-import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useCallback } from 'react';
 
-// 3. 导入第三方库（可选，需要协助用户安装依赖）
-import { Select } from 'antd';
+// 3. 导入第三方库（可选）
+import { Button, Input } from 'antd';
 
-// 4. 导入类型
-import type {
-  KeyDesc,
-  DataDesc,
-  ConfigItem,
-  Action,
-  EventItem,
-  AxhubProps,
-  AxhubHandle
-} from '../../common/axhub-types';
-
-// 5. 定义常量列表
-const EVENT_LIST: EventItem[] = [/* ... */];
-const ACTION_LIST: Action[] = [/* ... */];
-const VAR_LIST: KeyDesc[] = [/* ... */];
-const CONFIG_LIST: ConfigItem[] = [/* ... */];
-const DATA_LIST: DataDesc[] = [/* ... */];
-
-// 6. 定义组件
-const Component = forwardRef<AxhubHandle, AxhubProps>(function ComponentName(innerProps, ref) {
-  // 解构 props
-  const dataSource = innerProps && innerProps.data ? innerProps.data : {};
-  const configSource = innerProps && innerProps.config ? innerProps.config : {};
-  const onEventHandler = typeof innerProps.onEvent === 'function' 
-    ? innerProps.onEvent 
-    : function () { return undefined; };
-  const container = innerProps && innerProps.container ? innerProps.container : null;
-  
+// 4. 定义组件
+const Component = function MyComponent() {
   // 组件实现
-});
+  return <div>Component Content</div>;
+};
 
-// 7. 导出组件
+// 5. 导出组件
 export default Component;
 ```
 
-### 常量定义规范
-
-**所有常量必须有清晰的描述，说明参数和类型**
-
-```typescript
-// 事件列表
-const EVENT_LIST: EventItem[] = [
-  { name: 'onClick', desc: '点击按钮时触发' },
-  { name: 'onChange', desc: '值改变时触发，传递新值' }
-];
-
-// 动作列表（需说明参数）
-const ACTION_LIST: Action[] = [
-  { name: 'reset', desc: '重置表单到初始状态' },
-  { name: 'setValue', desc: '设置指定字段的值，参数：{ field: string, value: any }' }
-];
-
-// 变量列表（需说明类型）
-const VAR_LIST: KeyDesc[] = [
-  { name: 'value', desc: '当前输入值（字符串）' },
-  { name: 'isValid', desc: '表单是否有效（布尔值）' }
-];
-
-// 配置项列表（必须有 initialValue）
-const CONFIG_LIST: ConfigItem[] = [
-  {
-    type: 'input',
-    attributeId: 'title',
-    displayName: '标题',
-    info: '组件顶部显示的标题文本',
-    initialValue: '默认标题'
-  },
-  {
-    type: 'inputNumber',
-    attributeId: 'maxLength',
-    displayName: '最大长度',
-    info: '输入框允许的最大字符数',
-    initialValue: 100,
-    min: 1,
-    max: 1000
-  }
-];
-
-// 数据项列表（需详细定义 keys）
-const DATA_LIST: DataDesc[] = [
-  {
-    name: 'users',
-    desc: '用户列表数据',
-    keys: [
-      { name: 'id', desc: '用户唯一标识（数字）' },
-      { name: 'name', desc: '用户姓名（字符串）' },
-      { name: 'status', desc: '用户状态（active/inactive）' }
-    ]
-  }
-];
-```
+**如果使用 Axure API**，请参考 [Axure API 使用指南](./axure-api-guide.md) 了解完整的代码结构。
 
 ## 🔧 组件实现规范
-
-### Props 处理
-
-```typescript
-// 安全解构 props 并提供默认值
-const dataSource = innerProps && innerProps.data ? innerProps.data : {};
-const configSource = innerProps && innerProps.config ? innerProps.config : {};
-const onEventHandler = typeof innerProps.onEvent === 'function' 
-  ? innerProps.onEvent 
-  : function () { return undefined; };
-const container = innerProps && innerProps.container ? innerProps.container : null;
-
-// 从 config 获取配置，避免使用 || （会误判 0、false）
-const title = typeof configSource.title === 'string' && configSource.title 
-  ? configSource.title 
-  : '默认标题';
-```
-
-### Container 容器使用
-
-**`container` 是 AxhubProps 提供的 DOM 容器元素，可以直接用于挂载组件内容**
-
-**适用场景**：
-- **图表类组件**：ECharts、D3.js、Chart.js 等需要直接操作 DOM 的图表库
-- **第三方库集成**：需要直接挂载到 DOM 元素的库
-- **性能优化**：避免 React 虚拟 DOM 的开销，直接操作原生 DOM
-
-**使用示例（图表组件）**：
-
-```typescript
-import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
-import { CanvasRenderer } from 'echarts/renderers';
-
-const Component = forwardRef<AxhubHandle, AxhubProps>(function Chart(innerProps, ref) {
-  const container = innerProps && innerProps.container ? innerProps.container : null;
-  const chartInstanceRef = useRef<any>(null);
-
-  // 使用 useEffect 在 container 上初始化图表
-  useEffect(function () {
-    if (!container) {
-      return;
-    }
-
-    // 直接使用 container 初始化 ECharts
-    if (!chartInstanceRef.current) {
-      const chartInstance = echarts.init(container);
-      chartInstanceRef.current = chartInstance;
-      
-      // 设置图表配置
-      chartInstance.setOption({
-        // ... 配置项
-      });
-    }
-
-    // 清理函数
-    return function () {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-        chartInstanceRef.current = null;
-      }
-    };
-  }, [container]);
-
-  // 如果直接使用 container 渲染，组件可以返回 null
-  return null;
-});
-```
-
-**注意事项**：
-- `container` 可能为 `null`，使用前必须检查
-- 使用 `container` 时，组件可以返回 `null`（不渲染 React 元素）
-- 在 `useEffect` 中处理 DOM 操作，确保在组件挂载后执行
-- 记得在清理函数中销毁实例，避免内存泄漏
 
 ### State 管理
 
@@ -309,63 +248,7 @@ const setCount = countState[1];
 setCount(function (prev) { return prev + 1; });
 ```
 
-### 事件处理
-
-```typescript
-// 使用 useCallback 优化性能，避免在 JSX 中直接定义函数
-const emitEvent = useCallback(function (eventName: string, payload?: any) {
-  try {
-    onEventHandler(eventName, payload);
-  } catch (error) {
-    console.warn('事件触发失败:', eventName, error);
-  }
-}, [onEventHandler]);
-
-const handleClick = useCallback(function () {
-  emitEvent('onClick', { timestamp: Date.now() });
-}, [emitEvent]);
-```
-
-### 动作处理
-
-```typescript
-// 使用 switch 处理不同动作
-const fireActionHandler = useCallback(function (name: string, params?: any) {
-  switch (name) {
-    case 'reset':
-      setCount(0);
-      setMessage('');
-      break;
-    case 'setValue':
-      if (params && typeof params.value !== 'undefined') {
-        setMessage(params.value);
-      }
-      break;
-    default:
-      console.warn('未知的动作:', name);
-  }
-}, []);
-```
-
-### useImperativeHandle 使用
-
-```typescript
-// 完整暴露接口，正确设置依赖项
-useImperativeHandle(ref, function () {
-  return {
-    getVar: function (name: string) {
-      const vars: Record<string, any> = { count, message, isValid: count > 0 };
-      return vars[name];
-    },
-    fireAction: fireActionHandler,
-    eventList: EVENT_LIST,
-    actionList: ACTION_LIST,
-    varList: VAR_LIST,
-    configList: CONFIG_LIST,
-    dataList: DATA_LIST
-  };
-}, [count, message, fireActionHandler]);
-```
+**如果使用 Axure API**，请参考 [Axure API 使用指南](./axure-api-guide.md) 了解 Props 处理、事件处理、Container 使用等详细规范。
 
 ## 🎨 样式规范
 
@@ -400,67 +283,61 @@ div { }
 
 **`hack.css` 是用户手动调整样式的文件，AI Agent 不应主动修改**
 
-
-### 允许使用的 ES6+ 特性
-
-```typescript
-// 构建时会自动转换为 ES5
-const count = 0;  // → var
-for (const item of array) { }  // → for 循环
-const obj = { method() { } };  // → 完整函数
-
-// 但避免使用数组/对象解构
-const [a, b] = arr;  // ❌ 不推荐
-```
-
 ## 📦 导出规范
 
-### 必须导出 Component
-
-**所有组件文件必须包含 `export default Component` 语句**
+**所有组件文件必须使用 `export default Component` 导出**
 
 ```typescript
 // ✅ 正确 - 必须使用这个确切的导出语句
+const Component = function MyComponent() {
+  return <div>Component Content</div>;
+}
+
 export default Component;
 ```
 
 **注意事项**：
 - 必须使用变量名 `Component`（大小写敏感）
 - 必须使用 `export default` 语法
+- 无论是否使用 Axure API，导出规范保持一致
 - 这是 Axhub 第三方平台集成的必要条件
 
 ## ✅ 代码检查清单
 
 **文件头部**
-- [ ] 包含 `@name` 注释（项目名称，与用户语言一致）
+- [ ] 包含 `@name` 注释（项目名称）
+- [ ] 列出所有与开发相关的参考资料路径
 
 **依赖导入**
 - [ ] 直接从 `react` 导入所需的 Hooks
-- [ ] 第三方库已安装依赖（如使用 antd、@mui/material 等）
-- [ ] 导入顺序：样式 → React → 第三方库 → 类型
-
-**常量定义**
-- [ ] 所有列表完整且有清晰描述
-- [ ] ACTION_LIST 说明参数
-- [ ] VAR_LIST 说明类型
-- [ ] CONFIG_LIST 有 initialValue（如适用）
+- [ ] 第三方库已安装依赖
+- [ ] 使用按需导入
 
 **组件实现**
-- [ ] 使用 `forwardRef<AxhubHandle, AxhubProps>` 和类型标注
-- [ ] 安全解构 props 并提供默认值（包括 `container`）
-- [ ] 图表类组件优先使用 `container` 直接渲染（如 ECharts、D3.js 等）
-- [ ] 使用 `container` 时，在 `useEffect` 中处理 DOM 操作并正确清理
 - [ ] 使用 `useCallback` 优化回调
-- [ ] `useImperativeHandle` 暴露完整接口
 - [ ] 依赖项数组正确
+- [ ] 避免使用 ES6 解构（State 管理）
+
+**样式**
+- [ ] 使用 BEM 命名，加组件前缀
+- [ ] 避免全局样式污染
 
 **导出**
 - [ ] 使用 `export default Component`
 
+**Axure API（如果使用）**
+- [ ] 已完整阅读 [Axure API 使用指南](./axure-api-guide.md)
+- [ ] 所有列表完整且有清晰描述
+- [ ] 使用 `forwardRef<AxhubHandle, AxhubProps>` 和类型标注
+
 ## 📚 参考资源
 
-- **类型定义**：`src/common/axhub-types.ts`、`src/common/config-panel-types.ts`
-- **示例代码**：
-  - 基础组件：`src/elements/demo-button/`、`src/pages/demo-antd/`
-  - 图表组件（使用 container）：`src/elements/demo-line-chart/`
-- **其他文档**：[设计规范](./design-guidelines.md)、[调试指南](./debugging-guide.md)
+**示例代码**：
+- 查看 `/src/elements/` 和 `/src/pages/` 目录下以 `ref-` 开头的文件
+- 这些文件是参考案例，展示了规范的代码结构和最佳实践
+- 如果用户提供了参考案例，优先参考用户提供的案例
+- 如果没有用户提供的参考案例，可以查看 `ref-` 开头的文件学习规范
+
+**其他文档**：
+- [Axure API 使用指南](./axure-api-guide.md) - 如果需要使用 Axure API，必须阅读此文档
+- [调试指南](./debugging-guide.md)

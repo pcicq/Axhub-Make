@@ -1,12 +1,17 @@
 /**
  * @name 健身 App 首页
  * 
+ * 参考资料：
+ * - /rules/development-standards.md
+ * - /rules/axure-api-guide.md
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * 
  * ==================== 重要说明 ====================
- * 本文件是演示文件，用于展示 Axhub 组件开发规范
+ * 本文件是演示文件，用于展示 Axhub 页面开发规范
  * 文件中的详细注释【规范说明】仅用于教学和说明规范要求
  * 
  * 实际开发时：
- * 1. 只需保留 @name 注释
+ * 1. 只需保留 @name 和 参考资料 注释
  * 2. 不需要添加如此详细的规范说明注释
  * 3. 代码应该简洁清晰，避免冗余注释
  * 4. 只在复杂逻辑处添加必要的业务说明注释
@@ -19,7 +24,7 @@ import './style.css';
 
 // 2. React 和 Hooks（必需）
 // 直接从 'react' 导入所需的 Hooks，不使用解构
-import React, { useState, useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 
 // 3. 导入类型定义（必需）
 // 从 axhub-types 导入所有必要的类型

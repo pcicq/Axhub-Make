@@ -9,6 +9,7 @@ import { handleSpecHtml } from './handlers/specHtmlHandler';
 import { handleIndexHtml } from './handlers/indexHtmlHandler';
 import { handleAssetsRequest } from './handlers/assetsHandler';
 import { handleBuildRequest } from './handlers/buildHandler';
+import { handleDocsMarkdown } from './handlers/docsMarkdownHandler';
 
 /**
  * 虚拟 HTML 插件 - 在内存中生成 HTML，不写入文件系统
@@ -16,8 +17,10 @@ import { handleBuildRequest } from './handlers/buildHandler';
 export function virtualHtmlPlugin(): Plugin {
   const devTemplatePath = path.resolve(process.cwd(), 'admin/dev-template.html');
   const specTemplatePath = path.resolve(process.cwd(), 'admin/spec-template.html');
+  const htmlTemplatePath = path.resolve(process.cwd(), 'admin/html-template.html');
   let devTemplate: string;
   let specTemplate: string;
+  let htmlTemplate: string;
   let marked: any;
 
   return {
@@ -35,6 +38,12 @@ export function virtualHtmlPlugin(): Plugin {
         specTemplate = fs.readFileSync(specTemplatePath, 'utf8');
       } catch (err) {
         console.error('无法读取 spec-template 模板文件:', specTemplatePath);
+      }
+
+      try {
+        htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+      } catch (err) {
+        console.error('无法读取 html-template 模板文件:', htmlTemplatePath);
       }
 
       try {
@@ -94,11 +103,21 @@ export function virtualHtmlPlugin(): Plugin {
         // Handle entries API
         if (handleEntriesApi(req, res)) return;
 
+        // Handle docs markdown files
+        if (handleDocsMarkdown(req, res)) return;
+
         // Handle spec.html
         if (handleSpecHtml(req, res, specTemplate)) return;
 
         // Handle index.html
-        if (handleIndexHtml(req, res, devTemplate)) return;
+        if (req.url?.includes('/themes/') && req.url?.includes('/index.html')) {
+          try {
+            htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+          } catch (err) {
+            console.error('无法读取 html-template 模板文件:', htmlTemplatePath);
+          }
+        }
+        if (handleIndexHtml(req, res, devTemplate, htmlTemplate)) return;
 
         next();
       });

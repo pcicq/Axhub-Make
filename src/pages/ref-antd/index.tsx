@@ -1,12 +1,19 @@
 /**
  * @name 电商后台首页
  * 
+ * 参考资料：
+ * - /rules/development-standards.md
+ * - /rules/axure-api-guide.md
+ * - /assets/docs/设计规范.UIGuidelines.md
+ * - /src/themes/antd/designToken.json (Ant Design 主题)
+ * - /assets/libraries/antd.md (Ant Design 组件库)
+ * 
  * ==================== 重要说明 ====================
- * 本文件是演示文件,用于展示 Axhub 组件开发规范
+ * 本文件是演示文件，用于展示 Axhub 页面开发规范
  * 文件中的详细注释【规范说明】仅用于教学和说明规范要求
  * 
  * 实际开发时：
- * 1. 只需保留 @name 注释
+ * 1. 只需保留 @name 和 参考资料 注释
  * 2. 不需要添加如此详细的规范说明注释
  * 3. 代码应该简洁清晰，避免冗余注释
  * 4. 只在复杂逻辑处添加必要的业务说明注释
@@ -84,7 +91,7 @@ const VAR_LIST: KeyDesc[] = [
 // 【规范说明】配置项列表定义
 // 必须包含 initialValue，并清晰说明每个配置项的用途
 const CONFIG_LIST: ConfigItem[] = [
-  { type: 'input', attributeId: 'title', displayName: '页面标题', info: '显示在页面顶部的标题' }
+  { type: 'input', attributeId: 'title', displayName: '页面标题', info: '显示在页面顶部的标题', initialValue: '电商后台概览' }
 ];
 
 // 【规范说明】数据项列表定义

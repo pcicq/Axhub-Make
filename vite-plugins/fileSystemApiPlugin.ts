@@ -12,6 +12,61 @@ export function fileSystemApiPlugin(): Plugin {
   return {
     name: 'file-system-api',
     configureServer(server) {
+      // 处理 /api/delete-asset
+      server.middlewares.use('/api/delete-asset', (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk);
+        req.on('end', () => {
+          try {
+            const { type, name } = JSON.parse(body);
+            
+            if (!type || !name) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Missing type or name parameter' }));
+              return;
+            }
+
+            let targetPath = '';
+            if (type === 'themes') {
+              targetPath = path.resolve(process.cwd(), 'src/themes', name);
+            } else if (type === 'docs') {
+              targetPath = path.resolve(process.cwd(), 'assets/docs', `${name}.md`);
+            } else if (type === 'libraries') {
+              targetPath = path.resolve(process.cwd(), 'assets/libraries', `${name}.md`);
+            } else {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid asset type' }));
+              return;
+            }
+
+            if (!fs.existsSync(targetPath)) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: 'Asset not found' }));
+              return;
+            }
+
+            if (fs.statSync(targetPath).isDirectory()) {
+              fs.rmSync(targetPath, { recursive: true, force: true });
+            } else {
+              fs.unlinkSync(targetPath);
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+          } catch (e: any) {
+            console.error('Delete asset error:', e);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
+
       // 处理 /api/delete
       server.middlewares.use('/api/delete', (req: any, res: any) => {
         if (req.method !== 'POST') {

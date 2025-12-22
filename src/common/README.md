@@ -4,29 +4,19 @@
 
 ## 文件列表
 
-### theme-tokens.ts
+### DesignTokens.json
 
-主题 Token 定义文件，包含：
+设计 Token 定义文件（JSON 格式），包含：
+- 颜色 Token（背景色、文本色、边框色等）
+- 间距 Token
+- 圆角 Token
+- 边框宽度 Token
+- 字体 Token（字体族、大小、字重、行高）
+- 文本样式预设
+- 阴影 Token
 
-#### Token 定义
-- `colorTokens` - 颜色 Token（背景色、文本色、边框色）
-- `spacingTokens` - 间距 Token
-- `radiusTokens` - 圆角 Token
-- `borderWidthTokens` - 边框宽度 Token
-- `typographyTokens` - 字体 Token（字体族、大小、字重、行高）
-- `textStyleTokens` - 文本样式预设
-- `shadowTokens` - 阴影 Token（预留）
-- `themeTokens` - 主题 Token 汇总
+**注意**：此文件可能为空，表示使用默认设计系统。
 
-#### 类型定义
-- `ColorTokens` - 颜色 Token 类型
-- `SpacingTokens` - 间距 Token 类型
-- `RadiusTokens` - 圆角 Token 类型
-- `BorderWidthTokens` - 边框宽度 Token 类型
-- `TypographyTokens` - 字体 Token 类型
-- `TextStyleTokens` - 文本样式 Token 类型
-- `ShadowTokens` - 阴影 Token 类型
-- `ThemeTokens` - 主题 Token 汇总类型
 
 ### axhub-types.ts
 
@@ -116,9 +106,21 @@ const emitEvent = createEventEmitter(onEventHandler);
 emitEvent('onClick', { data: 'some data' });
 ```
 
-### 使用主题 Token
+### 使用设计 Token
 
 ```typescript
+// 从 JSON 文件导入设计 Token
+import DesignTokens from '../../common/DesignTokens.json';
+
+// 使用设计 Token（如果文件不为空）
+const style = DesignTokens ? {
+  backgroundColor: DesignTokens.colors?.background?.primary,
+  color: DesignTokens.colors?.text?.primary,
+  padding: DesignTokens.spacing?.base,
+  borderRadius: DesignTokens.radius?.md,
+} : {};
+
+// 或者使用 TypeScript 主题 Token
 import { 
   colorTokens, 
   spacingTokens, 
@@ -158,6 +160,20 @@ const textStyle = {
 const buttonTextStyle = textStyleTokens.button;
 ```
 
+### 使用核心数据模型
+
+```typescript
+// 从 JSON 文件导入核心数据模型
+import CoreModels from '../../common/CoreModels.json';
+
+// 使用核心数据模型（如果文件不为空）
+if (CoreModels && CoreModels.models) {
+  // 访问定义的数据模型
+  const userModel = CoreModels.models.user;
+  const productModel = CoreModels.models.product;
+}
+```
+
 ## 设计原则
 
 1. **类型安全**：所有公共类型都有明确的定义
@@ -171,6 +187,8 @@ const buttonTextStyle = textStyleTokens.button;
 2. **导入路径**：根据文件位置调整相对路径（`../../common/axhub-types`）
 3. **类型导入**：使用 `import type` 导入类型，避免运行时开销
 4. **容器属性**：虽然元素可能用不到 `container` 属性，但建议在代码中赋值以便参考
+5. **JSON 文件**：`DesignTokens.json` 和 `CoreModels.json` 可能为空，使用前需要检查文件内容
+6. **向后兼容**：保留 `theme-tokens.ts` 以确保现有组件的兼容性
 
 ## 扩展指南
 
@@ -184,5 +202,6 @@ const buttonTextStyle = textStyleTokens.button;
 
 ## 版本历史
 
+- v1.2.0 - 新增 JSON 格式的设计系统文件（DesignTokens.json、CoreModels.json），移除 theme.ts
 - v1.1.0 - 新增主题 Token 定义（theme-tokens.ts）
 - v1.0.0 - 初始版本，包含基础类型定义和工具函数
