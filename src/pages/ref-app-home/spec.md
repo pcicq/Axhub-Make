@@ -90,7 +90,7 @@
 - `currentTab`: 当前选中的 Tab 索引(0-3)
 - `todayProgress`: 今日目标完成进度(0-100)
 
-## 4. Axhub API 说明
+## 4. Axure API 说明
 
 ### 事件列表
 | 事件名 | 描述 | 触发时机 | 参数 |

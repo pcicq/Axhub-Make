@@ -77,7 +77,7 @@ ECharts 折线图组件是一个基于 Apache ECharts 的数据可视化元素�
 ### 状态变化
 - `chart_instance`：ECharts 实例对象，用于高级操作
 - `current_data`：当前图表数据，包含系列和 X 轴数据
-## 4. Axhub API 说明
+## 4. Axure API 说明
 
 ### 事件列表
 | 事件名 | 描述 | 触发时机 | 参数 |

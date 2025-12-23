@@ -61,14 +61,22 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
 \`\`\`
 4. 在关键代码段添加 \`// 【规范说明】\` 注释：导入顺序、Props处理、State管理、事件处理、useImperativeHandle、JSX渲染
 5. 注释解释"为什么"而非"做什么"，重点说明易错点和最佳实践`}function Nh(e){return Object.prototype.hasOwnProperty.call(mn,e)}function Mh(e){const{hasName:t,displayName:n,itemType:r,referenceDisplayName:o}=e,i=o?`
-参考案例：${o}`:"";return t?`**回复模板**：
+参考案例：${o}`:"";return t?`**系统交互要求**：
+- 收到本条系统指令后，必须先向用户回复一次，并等待用户补充信息/确认；未完成对齐前不要生成任何文件、代码或文档
+- 首次回复必须严格使用以下模板，不要输出实现内容
+
+**首次回复模板**：
 \`\`\`
-准备好创建 **${n}** ${r}。${i}
+收到，准备创建 **${n}** ${r}。${i}
 
 请详细描述您的需求：
-\`\`\``:`**回复模板**：
+\`\`\``:`**系统交互要求**：
+- 收到本条系统指令后，必须先向用户回复一次，并等待用户补充信息/确认；未完成对齐前不要生成任何文件、代码或文档
+- 首次回复必须严格使用以下模板，不要输出实现内容
+
+**首次回复模板**：
 \`\`\`
-准备好创建${r}。${i}
+收到，准备创建${r}。${i}
 
 请详细描述您的需求（如需创建多个${r}，请一并说明）：
 \`\`\``}function jh(e){return e?`
@@ -173,7 +181,7 @@ ${tr()}
 - 学习其文件组织、命名规范、代码风格`:""}function nr(e){const{title:t,selected:n,available:r,toLine:o}=e;return n.length===0?"":`
 
 ${t}${n.map(i=>{const s=r.find(l=>l.name===i);return`
-${o(i,s)}`}).join("")}`}function Dh(e,t,n,r,o,i=[],s=[],l=[],c=[],d=[],u=[],f=!0){const b=t==="elements",h=b?"元素":"页面",w=b?"elements":"pages",g=e.trim().length>0,m=e.trim(),y=r?o.find(D=>D.name===r):null,x=y?`src/${w}/${y.name}`:null,v=Nh(n)?mn[n]:mn.simultaneous,p=g?`请帮我创建 ${h}：**${m}** 原型`:`请帮我创建 ${h} 原型`,O=g?`**重要说明**：
+${o(i,s)}`}).join("")}`}function Dh(e,t,n,r,o,i=[],s=[],l=[],c=[],d=[],u=[],f=!0){const b=t==="elements",h=b?"元素":"页面",w=b?"elements":"pages",g=e.trim().length>0,m=e.trim(),y=r?o.find(D=>D.name===r):null,x=y?`src/${w}/${y.name}`:null,v=Nh(n)?mn[n]:mn.simultaneous,p=g?`**系统指令**：你将作为 Axhub Make 原型开发助手，创建 ${h}「**${m}**」原型`:`**系统指令**：你将作为 Axhub Make 原型开发助手，创建一个${h}原型`,O=g?`**重要说明**：
 - 显示名称（displayName）：**${m}**
 - 文件路径名（name）：请根据显示名称生成合适的英文或拼音路径名（小写字母、数字、连字符）
 - 目标路径：\`src/${w}/[生成的路径名]\``:`**重要说明**：

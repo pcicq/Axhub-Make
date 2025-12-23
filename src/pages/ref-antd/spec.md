@@ -79,7 +79,7 @@ Ant Design 是企业级 UI 设计语言和 React 组件库，广泛应用于中�
 ### 状态变化
 - `selectedRow`：当前选中的表格行数据
 - `loading`：表格加载状态
-## 4. Axhub API 说明
+## 4. Axure API 说明
 
 ### 事件列表
 | 事件名 | 描述 | 触发时机 | 参数 |
