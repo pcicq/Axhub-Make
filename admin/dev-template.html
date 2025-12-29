@@ -133,14 +133,17 @@
           originalConsoleError.apply(console, args);
 
           // 检查是否是重要错误，并且不是来自 Error Dialog 本身
-          if (!message.includes('[Error Dialog]') &&
-            (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed'))) {
+          const lowerMessage = message.toLowerCase();
+          const shouldShow = !message.includes('[Error Dialog]') &&
+            (lowerMessage.includes('error') || lowerMessage.includes('failed'));
+          
+          if (shouldShow) {
             try {
               // 获取调用堆栈
               const stack = new Error().stack || '无堆栈信息';
               showErrorDialog('错误: ' + message, stack);
             } catch (err) {
-              // 如果显示对话框失败，静默处理
+              originalConsoleError.call(console, '[Error Dialog] 显示对话框失败:', err);
             }
           }
         };

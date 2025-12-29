@@ -4,6 +4,9 @@
     "src/**",
     "assets/**"
   ],
+  "alwaysOverwrite": [
+    "src/common/**"
+  ],
   "conflictCheck": [
     "package.json"
   ],

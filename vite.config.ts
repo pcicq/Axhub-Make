@@ -624,6 +624,17 @@ function themesApiPlugin(): Plugin {
   };
 }
 
+// 读取配置文件
+const configPath = path.resolve(process.cwd(), 'axhub.config.json');
+let axhubConfig = { server: { host: 'localhost', port: 51720 } };
+if (fs.existsSync(configPath)) {
+  try {
+    axhubConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (e) {
+    console.warn('Failed to parse axhub.config.json, using defaults:', e);
+  }
+}
+
 const entriesPath = path.resolve(process.cwd(), 'entries.json');
 let entries = { js: {}, html: {} };
 if (fs.existsSync(entriesPath)) {
@@ -702,8 +713,8 @@ const config: any = {
   },
 
   server: {
-    port: 51720,
-    host: true,
+    port: axhubConfig.server?.port || 51720,
+    host: axhubConfig.server?.host || 'localhost',
     open: '/',
     cors: true,
     headers: {
