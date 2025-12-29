@@ -224,7 +224,7 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function AxhubButton(inner
   const dataListSource = Array.isArray(dataSource.data1) ? dataSource.data1 : [];
 
   // 【规范说明】JSX 渲染
-  // 使用 BEM 命名规范的 CSS 类名，添加元素前缀避免冲突
+  // 使用语义化的类名，添加元素前缀避免冲突
   // 避免在 JSX 中直接定义函数，使用预定义的 useCallback 函数
   return (
     <div className="axhub-button-container">

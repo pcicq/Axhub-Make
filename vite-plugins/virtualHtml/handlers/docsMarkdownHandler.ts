@@ -3,6 +3,29 @@ import fs from 'fs';
 import path from 'path';
 
 export function handleDocsMarkdown(req: IncomingMessage, res: ServerResponse): boolean {
+  // 处理 /pages/*.md 和 /elements/*.md
+  if ((req.url?.includes('/pages/') || req.url?.includes('/elements/')) && req.url?.endsWith('.md')) {
+    const urlWithoutQuery = req.url.split('?')[0];
+    const mdPath = path.resolve(process.cwd(), 'src' + urlWithoutQuery);
+
+    console.log('[虚拟HTML] 请求 page/element markdown:', req.url, '-> 路径:', mdPath, '存在:', fs.existsSync(mdPath));
+
+    if (fs.existsSync(mdPath)) {
+      try {
+        const content = fs.readFileSync(mdPath, 'utf8');
+        res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+        res.statusCode = 200;
+        res.end(content);
+        console.log('[虚拟HTML] ✅ 返回 page/element markdown:', req.url);
+        return true;
+      } catch (err) {
+        console.error('[虚拟HTML] ❌ 读取 page/element markdown 失败:', err);
+      }
+    } else {
+      console.log('[虚拟HTML] ❌ page/element markdown 不存在:', mdPath);
+    }
+  }
+
   // 处理 /assets/docs/*.md
   if (req.url?.startsWith('/assets/docs/') && req.url?.endsWith('.md')) {
     const urlWithoutQuery = req.url.split('?')[0];

@@ -94,7 +94,9 @@ const EVENT_LIST: EventItem[] = [
 ```typescript
 import { useCallback } from 'react';
 
-const emitEvent = useCallback(function (eventName: string, payload?: any) {
+// ⚠️ 强制规则：payload 必须是字符串类型
+// 如果需要传递复杂数据，请使用 JSON.stringify() 序列化
+const emitEvent = useCallback(function (eventName: string, payload?: string) {
   try {
     onEventHandler(eventName, payload);
   } catch (error) {
@@ -102,8 +104,11 @@ const emitEvent = useCallback(function (eventName: string, payload?: any) {
   }
 }, [onEventHandler]);
 
-// 使用
-emitEvent('onClick', { timestamp: Date.now() });
+// 使用示例：传递简单字符串
+emitEvent('onClick', 'button_clicked');
+
+// 使用示例：传递复杂数据（需要序列化）
+emitEvent('onChange', JSON.stringify({ timestamp: Date.now(), value: 'new_value' }));
 ```
 
 ### 2. 动作列表（ACTION_LIST）
@@ -113,9 +118,11 @@ emitEvent('onClick', { timestamp: Date.now() });
 ```typescript
 import type { Action } from '../../common/axhub-types';
 
+// ⚠️ 强制规则：params 必须是字符串类型
+// 如果需要传递复杂参数，请在 desc 中说明使用 JSON 格式
 const ACTION_LIST: Action[] = [
   { name: 'reset', desc: '重置表单到初始状态' },
-  { name: 'setValue', desc: '设置指定字段的值，参数：{ field: string, value: any }' },
+  { name: 'setValue', desc: '设置指定字段的值，参数格式：JSON 字符串 {"field":"字段名","value":"值"}', params: 'JSON string' },
   { name: 'submit', desc: '提交表单' }
 ];
 ```
@@ -123,15 +130,25 @@ const ACTION_LIST: Action[] = [
 **处理动作**：
 
 ```typescript
-const fireActionHandler = useCallback(function (name: string, params?: any) {
+// ⚠️ 强制规则：params 必须是字符串类型
+// 如果需要接收复杂参数，请使用 JSON.parse() 解析
+const fireActionHandler = useCallback(function (name: string, params?: string) {
   switch (name) {
     case 'reset':
       // 重置逻辑
       setFormData({});
       break;
     case 'setValue':
-      if (params && params.field) {
-        setFormData({ ...formData, [params.field]: params.value });
+      // 解析 JSON 字符串参数
+      if (params) {
+        try {
+          const parsed = JSON.parse(params);
+          if (parsed.field) {
+            setFormData({ ...formData, [parsed.field]: parsed.value });
+          }
+        } catch (error) {
+          console.warn('参数解析失败:', error);
+        }
       }
       break;
     case 'submit':
@@ -298,11 +315,12 @@ import type {
 } from '../../common/axhub-types';
 
 const EVENT_LIST: EventItem[] = [
-  { name: 'onSubmit', desc: '提交表单时触发，传递表单数据' }
+  { name: 'onSubmit', desc: '提交表单时触发，传递表单数据（JSON 字符串格式）', payload: 'JSON string' }
 ];
 
 const ACTION_LIST: Action[] = [
-  { name: 'reset', desc: '重置表单' }
+  { name: 'reset', desc: '重置表单' },
+  { name: 'setData', desc: '设置表单数据，参数格式：JSON 字符串', params: 'JSON string' }
 ];
 
 const VAR_LIST: KeyDesc[] = [
@@ -335,7 +353,8 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function UserForm(innerPro
   const formData = formDataState[0];
   const setFormData = formDataState[1];
 
-  const emitEvent = useCallback(function (eventName: string, payload?: any) {
+  // ⚠️ 强制规则：payload 必须是字符串类型
+  const emitEvent = useCallback(function (eventName: string, payload?: string) {
     try {
       onEventHandler(eventName, payload);
     } catch (error) {
@@ -344,7 +363,8 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function UserForm(innerPro
   }, [onEventHandler]);
 
   const handleSubmit = useCallback(function () {
-    emitEvent('onSubmit', { formData });
+    // 将复杂数据序列化为 JSON 字符串
+    emitEvent('onSubmit', JSON.stringify({ formData }));
   }, [emitEvent, formData]);
 
   const handleReset = useCallback(function () {
@@ -357,10 +377,21 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function UserForm(innerPro
         const vars: Record<string, any> = { formData };
         return vars[name];
       },
-      fireAction: function (name: string, params?: any) {
+      fireAction: function (name: string, params?: string) {
         switch (name) {
           case 'reset':
             handleReset();
+            break;
+          case 'setData':
+            // 解析 JSON 字符串参数
+            if (params) {
+              try {
+                const parsed = JSON.parse(params);
+                setFormData(parsed);
+              } catch (error) {
+                console.warn('参数解析失败:', error);
+              }
+            }
             break;
           default:
             console.warn('未知的动作:', name);

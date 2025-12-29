@@ -23,9 +23,9 @@ export function handleIndexHtml(req: IncomingMessage, res: ServerResponse, devTe
             ? `Page: ${name} - Dev Preview`
             : `Theme: ${name} - Dev Preview`;
 
-        let html = devTemplate.replace('{{TITLE}}', title);
+        let html = devTemplate.replace(/\{\{TITLE\}\}/g, title);
         // Vite root 是 'src'，所以路径应该相对于 src 目录
-        html = html.replace('{{ENTRY}}', `${urlPath}/index.tsx`);
+        html = html.replace(/\{\{ENTRY\}\}/g, `${urlPath}/index.tsx`);
 
         const hackCssPath = path.resolve(process.cwd(), 'src' + urlPath + '/hack.css');
         if (fs.existsSync(hackCssPath)) {

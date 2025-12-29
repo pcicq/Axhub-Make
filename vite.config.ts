@@ -3,7 +3,9 @@ import type { Plugin } from 'vite';
 import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import { networkInterfaces } from 'os';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { forceInlineDynamicImportsOff } from './vite-plugins/forceInlineDynamicImportsOff';
 import { addAxhubMarker } from './vite-plugins/addAxhubMarker';
 import { axhubComponentEnforcer } from './vite-plugins/axhubComponentEnforcer';
@@ -11,8 +13,54 @@ import { virtualHtmlPlugin } from './vite-plugins/virtualHtml';
 import { websocketPlugin } from './vite-plugins/websocketPlugin';
 import { injectStablePageIds } from './vite-plugins/injectStablePageIds';
 import { fileSystemApiPlugin } from './vite-plugins/fileSystemApiPlugin';
+import { codeReviewPlugin } from './vite-plugins/codeReviewPlugin';
+import { mcpInstallPlugin } from './vite-plugins/mcpInstallPlugin';
 
-// 服务 admin 目录下的静态文件
+/**
+ * ⚠️ 运行时配置注入说明
+ * 
+ * serveAdminPlugin 负责在运行时动态注入配置到 admin HTML 文件中。
+ * 这些配置包括：
+ * - window.__LOCAL_IP__: 当前机器的局域网 IP
+ * - window.__LOCAL_PORT__: 实际运行的端口号
+ * - window.__PROJECT_PREFIX__: 项目路径前缀
+ * - window.__IS_MIXED_PROJECT__: 是否为混合项目
+ * 
+ * 🔑 为什么在运行时注入？
+ * - admin 文件是由 prototype-admin 构建的静态文件
+ * - 构建时的 IP/端口在运行时可能不同（不同机器、端口被占用等）
+ * - 必须在每次请求时动态获取并注入正确的配置
+ */
+
+// 获取局域网 IP 地址
+function getLocalIP(): string {
+  const interfaces = networkInterfaces();
+  
+  for (const name of Object.keys(interfaces)) {
+    const nets = interfaces[name];
+    if (!nets) continue;
+    
+    for (const net of nets) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  
+  return 'localhost';
+}
+
+/**
+ * 服务 admin 目录下的静态文件插件
+ * 
+ * 🎯 核心职责：
+ * 1. 服务由 prototype-admin 构建的静态 HTML 文件
+ * 2. 在运行时动态注入配置（IP、端口、项目路径等）
+ * 3. 确保每次请求都使用当前机器的正确配置
+ * 
+ * ⚠️ 重要：不要移除运行时注入逻辑！
+ * 这些配置必须在运行时动态生成，不能在构建时写死。
+ */
 function serveAdminPlugin(): Plugin {
   // 检测项目结构：判断当前目录是否在 apps/xxx/ 下
   const currentDir = __dirname;
@@ -40,26 +88,35 @@ function serveAdminPlugin(): Plugin {
   
   const isMixedProject = !!projectPrefix;
   
-  // 注入到 HTML 的脚本
-  const injectScript = `
-  <script>
-    // 项目路径配置（根据项目结构自动检测）
-    window.__PROJECT_PREFIX__ = '${projectPrefix}';
-    window.__IS_MIXED_PROJECT__ = ${isMixedProject};
-  </script>`;
-  
   return {
     name: 'serve-admin-plugin',
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
         const adminDir = path.resolve(__dirname, 'admin');
         
+        // 获取运行时的局域网 IP 和端口
+        const localIP = getLocalIP();
+        const actualPort = server.httpServer?.address()?.port || server.config.server?.port || 5173;
+        
+        // 🔥 运行时动态注入配置脚本
+        // 注意：这些配置必须在每次请求时动态生成，不能在构建时写死
+        // 因为不同机器的 IP 不同，端口也可能被占用而改变
+        const injectScript = `
+  <script>
+    // 项目路径配置（根据项目结构自动检测）
+    window.__PROJECT_PREFIX__ = '${projectPrefix}';
+    window.__IS_MIXED_PROJECT__ = ${isMixedProject};
+    // 运行时注入的局域网 IP 信息
+    window.__LOCAL_IP__ = '${localIP}';
+    window.__LOCAL_PORT__ = ${actualPort};
+  </script>`;
+        
         // 处理根路径 / 或 /index.html
         if (req.url === '/' || req.url === '/index.html') {
           const indexPath = path.join(adminDir, 'index.html');
           if (fs.existsSync(indexPath)) {
             let html = fs.readFileSync(indexPath, 'utf8');
-            // 注入项目路径配置
+            // 注入项目路径配置和局域网 IP
             html = html.replace('</head>', `${injectScript}\n</head>`);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.end(html);
@@ -72,7 +129,7 @@ function serveAdminPlugin(): Plugin {
           const htmlPath = path.join(adminDir, req.url);
           if (fs.existsSync(htmlPath)) {
             let html = fs.readFileSync(htmlPath, 'utf8');
-            // 注入项目路径配置
+            // 注入项目路径配置和局域网 IP
             html = html.replace('</head>', `${injectScript}\n</head>`);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.end(html);
@@ -380,8 +437,10 @@ function uploadDocsApiPlugin(): Plugin {
 
               let safeName = path.basename(rawName).trim();
               safeName = safeName.replace(/[^\w.\- ]+/g, '-').replace(/\s+/g, '-');
-              if (!safeName.toLowerCase().endsWith('.md')) {
-                throw new Error('Only .md files are allowed');
+              
+              const lowerName = safeName.toLowerCase();
+              if (!lowerName.endsWith('.md') && !lowerName.endsWith('.csv') && !lowerName.endsWith('.json')) {
+                throw new Error('Only .md, .csv, and .json files are allowed');
               }
 
               const targetPath = path.join(docsDir, safeName);
@@ -390,7 +449,7 @@ function uploadDocsApiPlugin(): Plugin {
               }
 
               fs.writeFileSync(targetPath, content, 'utf8');
-              saved.push(safeName.replace(/\.md$/i, ''));
+              saved.push(safeName.replace(/\.(md|csv|json)$/i, ''));
             });
 
             res.statusCode = 200;
@@ -402,6 +461,55 @@ function uploadDocsApiPlugin(): Plugin {
             res.end(JSON.stringify({ error: e?.message || 'Upload failed' }));
           }
         });
+      });
+    }
+  };
+}
+
+function sourceApiPlugin(): Plugin {
+  return {
+    name: 'source-api-plugin',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (req.method !== 'GET' || !req.url.startsWith('/api/source')) {
+          return next();
+        }
+
+        try {
+          const url = new URL(req.url, `http://${req.headers.host}`);
+          const targetPath = url.searchParams.get('path'); // e.g., 'pages/ref-app-home' or 'elements/button'
+
+          if (!targetPath) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Missing path parameter' }));
+            return;
+          }
+
+          // Validate path to prevent directory traversal
+          if (targetPath.includes('..') || targetPath.startsWith('/')) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ error: 'Invalid path' }));
+            return;
+          }
+
+          // 构建源文件路径
+          const sourceFile = path.resolve(__dirname, 'src', targetPath, 'index.tsx');
+
+          if (!fs.existsSync(sourceFile)) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: 'Source file not found' }));
+            return;
+          }
+
+          // 读取并返回原始源代码
+          const sourceCode = fs.readFileSync(sourceFile, 'utf8');
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end(sourceCode);
+        } catch (e: any) {
+          console.error('Source file error:', e);
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: e.message }));
+        }
       });
     }
   };
@@ -540,6 +648,7 @@ const isIifeBuild = hasSingleEntry;
 
 const config: any = {
   plugins: [
+    tailwindcss(), // Tailwind CSS Vite 插件
     serveAdminPlugin(), // 服务 admin 目录（需要在最前面）
     injectStablePageIds(), // 注入稳定 ID（所有模式都启用）
     virtualHtmlPlugin(),
@@ -548,8 +657,11 @@ const config: any = {
     downloadDistPlugin(), // 提供 /api/download-dist 端点
     docsApiPlugin(), // 提供 /api/docs 端点
     uploadDocsApiPlugin(),
+    sourceApiPlugin(), // 提供 /api/source 端点
     themesApiPlugin(), // 提供 /api/themes 端点
     fileSystemApiPlugin(),
+    codeReviewPlugin(), // 提供 /api/code-review 端点
+    mcpInstallPlugin(), // 提供 /api/install-mcp 端点
     forceInlineDynamicImportsOff(isIifeBuild),
     isIifeBuild
       ? react({
@@ -569,6 +681,7 @@ const config: any = {
 
   resolve: {
     alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
       !isIifeBuild && {
         find: /^react\/.*/,
         replacement: path.resolve(__dirname, 'src/common/react-shim.js')

@@ -1,4 +1,5 @@
 const R = window.React;
+const RJSXRuntime = window.ReactJSXRuntime || {};
 
 export default R;
 
@@ -39,3 +40,8 @@ export const {
   act,
   version,
 } = R;
+
+// JSX Runtime exports for modern React
+export const jsx = RJSXRuntime.jsx || createElement;
+export const jsxs = RJSXRuntime.jsxs || createElement;
+export const jsxDEV = RJSXRuntime.jsxDEV || createElement;

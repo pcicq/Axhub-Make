@@ -107,8 +107,8 @@ export type ConfigItem = {
   [k: string]: any;
 };
 
-export type Action = { name: string; desc: string };
-export type EventItem = { name: string; desc: string };
+export type Action = { name: string; desc: string; params?: string };
+export type EventItem = { name: string; desc: string; payload?: string };
 
 export type CSSProperties = Record<string, string | number>;
 export type AnyFunction = (...args: any[]) => any;
@@ -127,8 +127,10 @@ export interface AxhubProps {
   data?: Record<string, any>;
   /** 配置项，用于配置组件的行为和样式 */
   config?: Record<string, any>;
-  /** 事件处理函数，组件触发事件时调用 */
-  onEvent?: (name: string, payload?: any) => void;
+  /** 事件处理函数，组件触发事件时调用
+   * ⚠️ 强制规则：payload 必须是字符串类型
+   */
+  onEvent?: (name: string, payload?: string) => void;
   /** 容器元素，用于挂载组件 */
   container?: HTMLElement | null;
 }
@@ -140,8 +142,10 @@ export interface AxhubProps {
 export interface AxhubHandle {
   /** 获取组件内部变量 */
   getVar: (name: string) => any;
-  /** 触发组件动作 */
-  fireAction: (name: string, params?: any) => void;
+  /** 触发组件动作
+   * ⚠️ 强制规则：params 必须是字符串类型
+   */
+  fireAction: (name: string, params?: string) => void;
   /** 组件支持的事件列表 */
   eventList: EventItem[];
   /** 组件支持的动作列表 */
@@ -160,12 +164,12 @@ export interface AxhubHandle {
  * 安全地触发事件
  * @param handler 事件处理函数
  * @param eventName 事件名称
- * @param payload 事件数据
+ * @param payload 事件数据（⚠️ 强制规则：必须是字符串类型）
  */
 export function safeEmitEvent(
-  handler: ((name: string, payload?: any) => void) | undefined,
+  handler: ((name: string, payload?: string) => void) | undefined,
   eventName: string,
-  payload?: any
+  payload?: string
 ): void {
   if (typeof handler === 'function') {
     try {
@@ -179,10 +183,10 @@ export function safeEmitEvent(
 /**
  * 创建事件发射器
  * @param onEventHandler 事件处理函数
- * @returns 事件发射函数
+ * @returns 事件发射函数（⚠️ 强制规则：payload 必须是字符串类型）
  */
-export function createEventEmitter(onEventHandler?: (name: string, payload?: any) => void) {
-  return function emitEvent(eventName: string, payload?: any) {
+export function createEventEmitter(onEventHandler?: (name: string, payload?: string) => void) {
+  return function emitEvent(eventName: string, payload?: string) {
     safeEmitEvent(onEventHandler, eventName, payload);
   };
 }

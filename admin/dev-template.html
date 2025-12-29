@@ -6,16 +6,12 @@
   <title>{{TITLE}}</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    /* 全局样式 */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     html,
     body {
+       box-sizing: border-box;
       width: 100%;
+      margin: 0;
+      padding: 0;
       height: auto;
       overflow-x: hidden;
       overflow-y: auto;
@@ -57,7 +53,7 @@
     (function () {
       // 保存原始的 console 方法
       const originalConsoleError = console.error;
-      
+
       // 等待 React 组件加载完成后再使用 showErrorDialog
       function showErrorDialog(message, stack) {
         // 如果 window.showErrorDialog 已经由 React 组件设置，直接使用
@@ -137,8 +133,8 @@
           originalConsoleError.apply(console, args);
 
           // 检查是否是重要错误，并且不是来自 Error Dialog 本身
-          if (!message.includes('[Error Dialog]') && 
-              (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed'))) {
+          if (!message.includes('[Error Dialog]') &&
+            (message.includes('[ECharts]') || message.includes('Error') || message.includes('Failed'))) {
             try {
               // 获取调用堆栈
               const stack = new Error().stack || '无堆栈信息';

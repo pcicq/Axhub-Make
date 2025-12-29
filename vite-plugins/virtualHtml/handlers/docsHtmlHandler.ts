@@ -24,8 +24,10 @@ export function handleDocsHtml(req: IncomingMessage, res: ServerResponse, specTe
       const title = `Docs: ${docName || 'Index'}`;
       const specMdUrl = `${urlPath}.md`;
 
-      let html = specTemplate.replace('{{TITLE}}', title);
-      html = html.replace('{{SPEC_URL}}', specMdUrl);
+      let html = specTemplate.replace(/\{\{TITLE\}\}/g, title);
+      html = html.replace(/\{\{SPEC_URL\}\}/g, specMdUrl);
+      html = html.replace(/\{\{DOCS_CONFIG\}\}/g, '[]');
+      html = html.replace(/\{\{MULTI_DOC\}\}/g, 'false');
 
       console.log('[虚拟HTML] ✅ 返回 Docs 虚拟 HTML:', req.url);
 

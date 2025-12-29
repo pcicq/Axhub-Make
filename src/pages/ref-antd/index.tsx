@@ -43,7 +43,8 @@ import {
   Avatar,
   Typography,
   Badge,
-  DatePicker
+  DatePicker,
+  theme
 } from 'antd';
 import {
   ArrowUpOutlined,
@@ -132,6 +133,8 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function EcommerceDashboar
   // 【规范说明】从 config 获取配置值
   // 使用类型检查避免使用 || 运算符（会误判 0、false 等值）
   const title = typeof configSource.title === 'string' && configSource.title ? configSource.title : '电商后台概览';
+  
+  const { token } = theme.useToken();
 
   // 【规范说明】默认数据定义
   // 为演示提供合理的默认数据
@@ -264,12 +267,12 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function EcommerceDashboar
               title="总销售额"
               value={126560}
               precision={2}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: token.colorSuccess }}
               prefix={<MoneyCollectOutlined />}
               suffix="¥"
             />
             <div className="metric-footer">
-              <Text type="secondary">周同比 12% <ArrowUpOutlined style={{ color: '#3f8600' }} /></Text>
+              <Text type="secondary">周同比 12% <ArrowUpOutlined style={{ color: token.colorSuccess }} /></Text>
             </div>
           </Card>
         </Col>
@@ -278,11 +281,11 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function EcommerceDashboar
             <Statistic
               title="访问量"
               value={8846}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: token.colorSuccess }}
               prefix={<UserOutlined />}
             />
             <div className="metric-footer">
-              <Text type="secondary">日同比 5% <ArrowUpOutlined style={{ color: '#3f8600' }} /></Text>
+              <Text type="secondary">日同比 5% <ArrowUpOutlined style={{ color: token.colorSuccess }} /></Text>
             </div>
           </Card>
         </Col>
@@ -291,11 +294,11 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function EcommerceDashboar
             <Statistic
               title="支付笔数"
               value={6560}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: token.colorError }}
               prefix={<ShoppingCartOutlined />}
             />
             <div className="metric-footer">
-              <Text type="secondary">周同比 8% <ArrowDownOutlined style={{ color: '#cf1322' }} /></Text>
+              <Text type="secondary">周同比 8% <ArrowDownOutlined style={{ color: token.colorError }} /></Text>
             </div>
           </Card>
         </Col>
@@ -305,12 +308,12 @@ const Component = forwardRef<AxhubHandle, AxhubProps>(function EcommerceDashboar
               title="转化率"
               value={12.5}
               precision={1}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: token.colorSuccess }}
               prefix={<ShoppingOutlined />}
               suffix="%"
             />
             <div className="metric-footer">
-              <Text type="secondary">周同比 2% <ArrowUpOutlined style={{ color: '#3f8600' }} /></Text>
+              <Text type="secondary">周同比 2% <ArrowUpOutlined style={{ color: token.colorSuccess }} /></Text>
             </div>
           </Card>
         </Col>

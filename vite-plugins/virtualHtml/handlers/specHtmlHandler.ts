@@ -15,27 +15,75 @@ export function handleSpecHtml(req: IncomingMessage, res: ServerResponse, specTe
 
   // 处理 /pages/* 或 /elements/* 的 spec.html 请求
   if (pathParts.length >= 2 && ['elements', 'pages'].includes(pathParts[0])) {
-    const mdPath = path.resolve(process.cwd(), 'src' + urlPath + '/spec.md');
+    const basePath = path.resolve(process.cwd(), 'src' + urlPath);
+    const specMdPath = path.join(basePath, 'spec.md');
+    const prdMdPath = path.join(basePath, 'prd.md');
     const name = pathParts[1];
     const type = pathParts[0] === 'elements' ? 'Element' : 'Page';
 
-    console.log('[虚拟HTML] 检查 spec.md 文件:', mdPath, '存在:', fs.existsSync(mdPath));
+    console.log('[虚拟HTML] 检查文档文件:', { specMdPath, prdMdPath });
+    console.log('[虚拟HTML] 文件存在:', { 
+      spec: fs.existsSync(specMdPath), 
+      prd: fs.existsSync(prdMdPath) 
+    });
 
-    if (fs.existsSync(mdPath)) {
+    const hasSpec = fs.existsSync(specMdPath);
+    const hasPrd = fs.existsSync(prdMdPath);
+
+    if (hasSpec || hasPrd) {
       const title = `${type}: ${name}`;
-      const specMdUrl = `${urlPath}/spec.md`;
+      
+      // 如果同时存在 spec.md 和 prd.md，使用多文档模式
+      if (hasSpec && hasPrd) {
+        const docs = [
+          { key: 'spec', label: 'SPEC - 规格文档', url: `${urlPath}/spec.md` },
+          { key: 'prd', label: 'PRD - 需求文档', url: `${urlPath}/prd.md` }
+        ];
+        
+        // 将 JSON 字符串进行 HTML 转义
+        const docsJson = JSON.stringify(docs)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        
+        console.log('[虚拟HTML] 多文档配置 JSON:', docsJson);
+        
+        let html = specTemplate.replace(/\{\{TITLE\}\}/g, title);
+        html = html.replace(/\{\{SPEC_URL\}\}/g, ''); // 清空单文档 URL
+        html = html.replace(/\{\{DOCS_CONFIG\}\}/g, docsJson);
+        html = html.replace(/\{\{MULTI_DOC\}\}/g, 'true');
 
-      let html = specTemplate.replace('{{TITLE}}', title);
-      html = html.replace('{{SPEC_URL}}', specMdUrl);
+        console.log('[虚拟HTML] ✅ 返回多文档 Spec 虚拟 HTML:', req.url);
+        console.log('[虚拟HTML] HTML 包含 MULTI_DOC:', html.includes('true'));
 
-      console.log('[虚拟HTML] ✅ 返回 Spec 虚拟 HTML:', req.url);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.statusCode = 200;
+        res.end(html);
+        return true;
+      } else {
+        // 单文档模式
+        const specMdUrl = hasSpec ? `${urlPath}/spec.md` : `${urlPath}/prd.md`;
 
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.statusCode = 200;
-      res.end(html);
-      return true;
+        console.log('[虚拟HTML] 单文档模式，URL:', specMdUrl);
+
+        let html = specTemplate.replace(/\{\{TITLE\}\}/g, title);
+        html = html.replace(/\{\{SPEC_URL\}\}/g, specMdUrl);
+        html = html.replace(/\{\{DOCS_CONFIG\}\}/g, '[]');
+        html = html.replace(/\{\{MULTI_DOC\}\}/g, 'false');
+
+        console.log('[虚拟HTML] ✅ 返回单文档 Spec 虚拟 HTML:', req.url);
+        console.log('[虚拟HTML] SPEC_URL 已替换为:', specMdUrl);
+        console.log('[虚拟HTML] HTML 包含 SPEC_URL:', html.includes(specMdUrl));
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.statusCode = 200;
+        res.end(html);
+        return true;
+      }
     } else {
-      console.log('[虚拟HTML] ❌ spec.md 不存在:', mdPath);
+      console.log('[虚拟HTML] ❌ spec.md 和 prd.md 都不存在');
     }
   }
 
@@ -54,8 +102,10 @@ export function handleSpecHtml(req: IncomingMessage, res: ServerResponse, specTe
       const decodedUrlPath = decodeURIComponent(urlPath);
       const specMdUrl = `${decodedUrlPath}.md`;
 
-      let html = specTemplate.replace('{{TITLE}}', title);
-      html = html.replace('{{SPEC_URL}}', specMdUrl);
+      let html = specTemplate.replace(/\{\{TITLE\}\}/g, title);
+      html = html.replace(/\{\{SPEC_URL\}\}/g, specMdUrl);
+      html = html.replace(/\{\{DOCS_CONFIG\}\}/g, '[]');
+      html = html.replace(/\{\{MULTI_DOC\}\}/g, 'false');
 
       console.log('[虚拟HTML] ✅ 返回 Docs 虚拟 HTML:', req.url);
 
@@ -82,8 +132,10 @@ export function handleSpecHtml(req: IncomingMessage, res: ServerResponse, specTe
       // 构建正确的 markdown URL
       const specMdUrl = `/assets/libraries/${decodedLibraryName}.md`;
 
-      let html = specTemplate.replace('{{TITLE}}', title);
-      html = html.replace('{{SPEC_URL}}', specMdUrl);
+      let html = specTemplate.replace(/\{\{TITLE\}\}/g, title);
+      html = html.replace(/\{\{SPEC_URL\}\}/g, specMdUrl);
+      html = html.replace(/\{\{DOCS_CONFIG\}\}/g, '[]');
+      html = html.replace(/\{\{MULTI_DOC\}\}/g, 'false');
 
       console.log('[虚拟HTML] ✅ 返回 Library 虚拟 HTML:', req.url);
 

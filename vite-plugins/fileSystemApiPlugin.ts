@@ -139,6 +139,114 @@ export function fileSystemApiPlugin(): Plugin {
         });
       });
 
+      // 处理 /api/rename
+      server.middlewares.use('/api/rename', (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk);
+        req.on('end', () => {
+          try {
+            const { path: targetPath, newName } = JSON.parse(body);
+
+            if (!targetPath || !newName) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Missing path or newName parameter' }));
+              return;
+            }
+
+            if (targetPath.includes('..') || targetPath.startsWith('/')) {
+              res.statusCode = 403;
+              res.end(JSON.stringify({ error: 'Invalid path' }));
+              return;
+            }
+
+            const trimmedNewName = String(newName).trim();
+            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedNewName)) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid newName' }));
+              return;
+            }
+
+            const parts = String(targetPath).split('/').filter(Boolean);
+            if (parts.length !== 2 || (parts[0] !== 'elements' && parts[0] !== 'pages')) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid path' }));
+              return;
+            }
+
+            const group = parts[0];
+            const oldName = parts[1];
+            if (oldName === trimmedNewName) {
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true }));
+              return;
+            }
+
+            const oldDir = path.resolve(process.cwd(), 'src', group, oldName);
+            const newDir = path.resolve(process.cwd(), 'src', group, trimmedNewName);
+
+            if (!fs.existsSync(oldDir)) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: 'Directory not found' }));
+              return;
+            }
+
+            if (fs.existsSync(newDir)) {
+              res.statusCode = 409;
+              res.end(JSON.stringify({ error: 'Target name already exists' }));
+              return;
+            }
+
+            fs.renameSync(oldDir, newDir);
+
+            const entriesPath = path.resolve(process.cwd(), 'entries.json');
+            if (fs.existsSync(entriesPath)) {
+              try {
+                const entries = JSON.parse(fs.readFileSync(entriesPath, 'utf8'));
+                const oldKey = `${group}/${oldName}`;
+                const newKey = `${group}/${trimmedNewName}`;
+
+                let changed = false;
+                if (entries.js && entries.js[oldKey]) {
+                  const oldVal = entries.js[oldKey];
+                  delete entries.js[oldKey];
+                  entries.js[newKey] = typeof oldVal === 'string'
+                    ? oldVal.replace(new RegExp(`${oldKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=/|$)`), newKey)
+                    : oldVal;
+                  changed = true;
+                }
+                if (entries.html && entries.html[oldKey]) {
+                  const oldVal = entries.html[oldKey];
+                  delete entries.html[oldKey];
+                  entries.html[newKey] = typeof oldVal === 'string'
+                    ? oldVal.replace(new RegExp(`${oldKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=/|$)`), newKey)
+                    : oldVal;
+                  changed = true;
+                }
+
+                if (changed) {
+                  fs.writeFileSync(entriesPath, JSON.stringify(entries, null, 2));
+                }
+              } catch (e) {
+                console.error('Error updating entries.json:', e);
+              }
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+          } catch (e: any) {
+            console.error('Rename error:', e);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
+
       // 处理 /api/entries.json
       server.middlewares.use('/api/entries.json', (_req: any, res: any) => {
         const entriesPath = path.resolve(process.cwd(), 'entries.json');
