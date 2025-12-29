@@ -37,8 +37,6 @@
     "ws": "^8.18.3"
   },
   "dependencies": {
-    "@antv/l7": "^2.23.1",
-    "@antv/l7-maps": "^2.23.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "class-variance-authority": "^0.7.1",
