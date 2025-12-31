@@ -15,6 +15,7 @@ import { injectStablePageIds } from './vite-plugins/injectStablePageIds';
 import { fileSystemApiPlugin } from './vite-plugins/fileSystemApiPlugin';
 import { codeReviewPlugin } from './vite-plugins/codeReviewPlugin';
 import { mcpInstallPlugin } from './vite-plugins/mcpInstallPlugin';
+import { autoDebugPlugin } from './vite-plugins/autoDebugPlugin';
 
 /**
  * ⚠️ 运行时配置注入说明
@@ -673,6 +674,7 @@ const config: any = {
     fileSystemApiPlugin(),
     codeReviewPlugin(), // 提供 /api/code-review 端点
     mcpInstallPlugin(), // 提供 /api/install-mcp 端点
+    autoDebugPlugin(), // 提供自动调试 API 端点
     forceInlineDynamicImportsOff(isIifeBuild),
     isIifeBuild
       ? react({

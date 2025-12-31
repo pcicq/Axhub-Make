@@ -10,7 +10,7 @@
 - **标识**：`ref-app-home`
 
 ### 1.2 技术定位
-本组件是一个完整的移动端应用首页实现，展示了 Axhub 平台的标准开发模式。组件采用 React + TypeScript 开发，遵循 Axhub API 规范，支持完整的事件、动作、变量和配置管理。
+本组件是一个完整的移动端应用首页实现，展示了 Axhub 平台的标准开发模式。组件采用 React + TypeScript 开发，遵循 Axure API 规范，支持完整的事件、动作、变量和配置管理。
 
 ### 1.3 核心能力
 - 展示用户运动数据统计（卡路里、时长、连续天数）
@@ -37,7 +37,7 @@ ref-app-home/
 - **框架**：React 18+
 - **语言**：TypeScript
 - **样式**：CSS（原生 CSS，不使用预处理器）
-- **API**：Axhub API（事件、动作、变量、配置）
+- **API**：Axure API（事件、动作、变量、配置）
 
 ### 2.3 依赖关系
 - `react`：React 核心库
@@ -170,7 +170,7 @@ const setCurrentTab = tabState[1];
 - 使用 SVG 图标，支持颜色动态变化
 - 适配 iPhone 底部安全区（`padding-bottom: 16px`）
 
-## 4. Axhub API 实现
+## 4. Axure API 实现
 
 ### 4.1 事件列表（Events）
 

@@ -294,21 +294,72 @@ export function fileSystemApiPlugin(): Plugin {
                 return;
             }
 
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Disposition', `attachment; filename="${path.basename(targetPath)}.zip"`);
-
-            // Use zip command (available on macOS/Linux)
-            const child = exec(`cd "${srcDir}" && zip -r - .`, { maxBuffer: 1024 * 1024 * 10 });
-
-            if (child.stdout) {
-                child.stdout.pipe(res);
-            } else {
-                res.statusCode = 500;
-                res.end(JSON.stringify({ error: 'Failed to create zip stream' }));
-            }
+            const folderName = path.basename(srcDir);
+            const parentDir = path.dirname(srcDir);
+            const tmpZipPath = path.join(parentDir, `${folderName}-${Date.now()}.zip`);
             
-            child.stderr?.on('data', (data) => {
-                console.error(`zip stderr: ${data}`);
+            // Use zip command with -q flag to suppress progress output
+            const child = exec(`cd "${parentDir}" && zip -q -r "${tmpZipPath}" "${folderName}"`, { 
+                maxBuffer: 1024 * 1024 * 10
+            });
+
+            child.on('error', (error) => {
+                console.error('Zip process error:', error);
+                if (fs.existsSync(tmpZipPath)) {
+                    fs.unlinkSync(tmpZipPath);
+                }
+                if (!res.headersSent) {
+                    res.statusCode = 500;
+                    res.end(JSON.stringify({ error: error.message }));
+                }
+            });
+
+            child.on('exit', (code) => {
+                if (code !== 0) {
+                    console.error(`Zip process exited with code ${code}`);
+                    if (fs.existsSync(tmpZipPath)) {
+                        fs.unlinkSync(tmpZipPath);
+                    }
+                    if (!res.headersSent) {
+                        res.statusCode = 500;
+                        res.end(JSON.stringify({ error: `Zip failed with code ${code}` }));
+                    }
+                    return;
+                }
+
+                // Send the zip file
+                try {
+                    const stat = fs.statSync(tmpZipPath);
+                    res.setHeader('Content-Type', 'application/zip');
+                    res.setHeader('Content-Disposition', `attachment; filename="${folderName}.zip"`);
+                    res.setHeader('Content-Length', stat.size);
+                    
+                    const readStream = fs.createReadStream(tmpZipPath);
+                    readStream.pipe(res);
+                    
+                    readStream.on('end', () => {
+                        // Clean up temp file
+                        if (fs.existsSync(tmpZipPath)) {
+                            fs.unlinkSync(tmpZipPath);
+                        }
+                    });
+
+                    readStream.on('error', (error) => {
+                        console.error('Read stream error:', error);
+                        if (fs.existsSync(tmpZipPath)) {
+                            fs.unlinkSync(tmpZipPath);
+                        }
+                    });
+                } catch (e: any) {
+                    console.error('Error sending zip file:', e);
+                    if (fs.existsSync(tmpZipPath)) {
+                        fs.unlinkSync(tmpZipPath);
+                    }
+                    if (!res.headersSent) {
+                        res.statusCode = 500;
+                        res.end(JSON.stringify({ error: e.message }));
+                    }
+                }
             });
 
         } catch (e: any) {
