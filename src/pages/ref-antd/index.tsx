@@ -1,5 +1,5 @@
 /**
- * @name 电商后台首页
+ * @name Antd 电商后台首页
  * 
  * 参考资料：
  * - /rules/development-standards.md

@@ -20,6 +20,29 @@
 
 ## 用户旅程
 
+```mermaid
+graph TD
+    A[访客进入页面] --> B[Hero 区域<br/>第一印象]
+    B --> C[Dashboard 预览<br/>产品可视化]
+    C --> D[社会证明<br/>建立信任]
+    D --> E[Bento 区域<br/>功能教育]
+    E --> F[用户评价<br/>社会验证]
+    F --> G[价格区域<br/>价格透明]
+    G --> H[FAQ<br/>问题解答]
+    H --> I[最终 CTA<br/>转化]
+    
+    B -.-> J[注册转化]
+    I -.-> J[注册转化]
+    G -.-> J[注册转化]
+    
+    J --> K[成功注册用户]
+    
+    style B fill:#0ea5e9
+    style I fill:#0ea5e9
+    style J fill:#10b981
+    style K fill:#10b981
+```
+
 ### 1. 第一印象（Hero 区域）
 - **目标**：吸引注意力并传达核心价值
 - **元素**：

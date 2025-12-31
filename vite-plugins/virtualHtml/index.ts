@@ -21,7 +21,6 @@ export function virtualHtmlPlugin(): Plugin {
   let devTemplate: string;
   let specTemplate: string;
   let htmlTemplate: string;
-  let marked: any;
 
   return {
     name: 'virtual-html',
@@ -44,13 +43,6 @@ export function virtualHtmlPlugin(): Plugin {
         htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
       } catch (err) {
         console.error('无法读取 html-template 模板文件:', htmlTemplatePath);
-      }
-
-      try {
-        const markedModule = await import('marked');
-        marked = markedModule.marked;
-      } catch (err) {
-        console.error('无法加载 marked 模块');
       }
 
       server.middlewares.use((req, res, next) => {

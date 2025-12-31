@@ -166,9 +166,9 @@ export function fileSystemApiPlugin(): Plugin {
             }
 
             const trimmedNewName = String(newName).trim();
-            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedNewName)) {
+            if (!trimmedNewName) {
               res.statusCode = 400;
-              res.end(JSON.stringify({ error: 'Invalid newName' }));
+              res.end(JSON.stringify({ error: 'Name cannot be empty' }));
               return;
             }
 
@@ -180,62 +180,36 @@ export function fileSystemApiPlugin(): Plugin {
             }
 
             const group = parts[0];
-            const oldName = parts[1];
-            if (oldName === trimmedNewName) {
-              res.statusCode = 200;
-              res.end(JSON.stringify({ success: true }));
-              return;
-            }
+            const folderName = parts[1];
+            const targetDir = path.resolve(process.cwd(), 'src', group, folderName);
 
-            const oldDir = path.resolve(process.cwd(), 'src', group, oldName);
-            const newDir = path.resolve(process.cwd(), 'src', group, trimmedNewName);
-
-            if (!fs.existsSync(oldDir)) {
+            if (!fs.existsSync(targetDir)) {
               res.statusCode = 404;
               res.end(JSON.stringify({ error: 'Directory not found' }));
               return;
             }
 
-            if (fs.existsSync(newDir)) {
-              res.statusCode = 409;
-              res.end(JSON.stringify({ error: 'Target name already exists' }));
+            // 修改 index.tsx 中的 @name 注释
+            const indexPath = path.join(targetDir, 'index.tsx');
+            if (!fs.existsSync(indexPath)) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: 'index.tsx not found' }));
               return;
             }
 
-            fs.renameSync(oldDir, newDir);
-
-            const entriesPath = path.resolve(process.cwd(), 'entries.json');
-            if (fs.existsSync(entriesPath)) {
-              try {
-                const entries = JSON.parse(fs.readFileSync(entriesPath, 'utf8'));
-                const oldKey = `${group}/${oldName}`;
-                const newKey = `${group}/${trimmedNewName}`;
-
-                let changed = false;
-                if (entries.js && entries.js[oldKey]) {
-                  const oldVal = entries.js[oldKey];
-                  delete entries.js[oldKey];
-                  entries.js[newKey] = typeof oldVal === 'string'
-                    ? oldVal.replace(new RegExp(`${oldKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=/|$)`), newKey)
-                    : oldVal;
-                  changed = true;
-                }
-                if (entries.html && entries.html[oldKey]) {
-                  const oldVal = entries.html[oldKey];
-                  delete entries.html[oldKey];
-                  entries.html[newKey] = typeof oldVal === 'string'
-                    ? oldVal.replace(new RegExp(`${oldKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=/|$)`), newKey)
-                    : oldVal;
-                  changed = true;
-                }
-
-                if (changed) {
-                  fs.writeFileSync(entriesPath, JSON.stringify(entries, null, 2));
-                }
-              } catch (e) {
-                console.error('Error updating entries.json:', e);
-              }
+            let content = fs.readFileSync(indexPath, 'utf8');
+            const nameRegex = /@(?:name|displayName)\s+(.+)/;
+            const match = content.match(nameRegex);
+            
+            if (!match) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: '@name comment not found in index.tsx' }));
+              return;
             }
+
+            // 替换 @name 注释
+            content = content.replace(nameRegex, `@name ${trimmedNewName}`);
+            fs.writeFileSync(indexPath, content, 'utf8');
 
             res.statusCode = 200;
             res.end(JSON.stringify({ success: true }));

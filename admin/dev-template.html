@@ -49,27 +49,123 @@
 <body>
 
   <script>
-    // 全局错误捕获
+    // 全局错误捕获系统（增强版）
     (function () {
+      const bootTime = Date.now();
+      const errorQueue = [];
+      let reactReady = false;
+      let fallbackUIShown = false;
+
       // 保存原始的 console 方法
       const originalConsoleError = console.error;
+      const originalConsoleWarn = console.warn;
 
-      // 等待 React 组件加载完成后再使用 showErrorDialog
-      function showErrorDialog(message, stack) {
-        // 如果 window.showErrorDialog 已经由 React 组件设置，直接使用
-        if (typeof window.showErrorDialog === 'function') {
+      // 简易版错误显示（降级方案）
+      function showFallbackErrorUI(errors) {
+        if (fallbackUIShown) {
+          // 更新已有的错误列表
+          const errorList = document.getElementById('__fallback_error_list__');
+          if (errorList) {
+            errorList.innerHTML = errors.map((err, idx) => 
+              '<div style="margin-bottom: 12px; padding: 8px; background: #fff1f0; border-left: 3px solid #ff4d4f; border-radius: 2px;">' +
+              '<div style="font-weight: 600; color: #cf1322; margin-bottom: 4px;">[' + (idx + 1) + '] ' + escapeHtml(err.message) + '</div>' +
+              (err.stack ? '<pre style="margin: 0; font-size: 11px; color: #666; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">' + escapeHtml(err.stack) + '</pre>' : '') +
+              '</div>'
+            ).join('');
+          }
+          return;
+        }
+
+        fallbackUIShown = true;
+        const overlay = document.createElement('div');
+        overlay.id = '__fallback_error_overlay__';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 999999; display: flex; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow: auto;';
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 700px; width: 100%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;';
+        
+        modal.innerHTML = 
+          '<div style="padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between;">' +
+          '<div style="display: flex; align-items: center; gap: 8px;">' +
+          '<svg viewBox="64 64 896 896" width="20" height="20" fill="#ff4d4f"><path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 0 1 0-96 48.01 48.01 0 0 1 0 96z"></path></svg>' +
+          '<span style="font-size: 16px; font-weight: 600; color: #262626;">运行时错误 (' + errors.length + ')</span>' +
+          '</div>' +
+          '<button id="__fallback_close__" style="border: none; background: none; cursor: pointer; font-size: 20px; color: #8c8c8c; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">×</button>' +
+          '</div>' +
+          '<div id="__fallback_error_list__" style="padding: 24px; overflow-y: auto; flex: 1;">' +
+          errors.map((err, idx) => 
+            '<div style="margin-bottom: 12px; padding: 8px; background: #fff1f0; border-left: 3px solid #ff4d4f; border-radius: 2px;">' +
+            '<div style="font-weight: 600; color: #cf1322; margin-bottom: 4px;">[' + (idx + 1) + '] ' + escapeHtml(err.message) + '</div>' +
+            (err.stack ? '<pre style="margin: 0; font-size: 11px; color: #666; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">' + escapeHtml(err.stack) + '</pre>' : '') +
+            '</div>'
+          ).join('') +
+          '</div>' +
+          '<div style="padding: 12px 24px; border-top: 1px solid #f0f0f0; display: flex; gap: 8px; justify-content: flex-end;">' +
+          '<button id="__fallback_copy__" style="padding: 6px 16px; border: 1px solid #d9d9d9; background: white; border-radius: 4px; cursor: pointer; font-size: 14px;">复制错误</button>' +
+          '<button id="__fallback_clear__" style="padding: 6px 16px; border: 1px solid #d9d9d9; background: white; border-radius: 4px; cursor: pointer; font-size: 14px;">清空并关闭</button>' +
+          '</div>';
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // 绑定事件
+        document.getElementById('__fallback_close__').onclick = function() {
+          overlay.style.display = 'none';
+        };
+        
+        document.getElementById('__fallback_clear__').onclick = function() {
+          errorQueue.length = 0;
+          document.body.removeChild(overlay);
+          fallbackUIShown = false;
+        };
+        
+        document.getElementById('__fallback_copy__').onclick = function() {
+          const text = errors.map((err, idx) => 
+            '[' + (idx + 1) + '] ' + err.message + '\n' + (err.stack || '无堆栈信息')
+          ).join('\n\n' + '='.repeat(80) + '\n\n');
+          
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+              alert('错误信息已复制到剪贴板');
+            }).catch(function() {
+              prompt('请手动复制以下内容:', text);
+            });
+          } else {
+            prompt('请手动复制以下内容:', text);
+          }
+        };
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // 统一的错误处理函数
+      function handleError(message, stack, type) {
+        const error = {
+          message: message,
+          stack: stack,
+          timestamp: Date.now(),
+          sinceBoot: Date.now() - bootTime,
+          type: type
+        };
+
+        errorQueue.push(error);
+
+        // 如果 React 已就绪，使用 React 组件显示
+        if (reactReady && typeof window.showErrorDialog === 'function') {
           window.showErrorDialog(message, stack);
         } else {
-          // 否则使用原始的 console.error 输出（避免循环）
-          originalConsoleError.call(console, '[Error Dialog] React 组件未就绪，错误信息:', message);
-          originalConsoleError.call(console, '[Error Dialog] 堆栈信息:', stack);
+          // 否则使用降级 UI
+          showFallbackErrorUI(errorQueue);
         }
       }
 
-      // 捕获未处理的错误
+      // 捕获未处理的错误（捕获阶段，优先级最高）
       window.addEventListener('error', function (event) {
-        // 详细日志
-        console.error('捕获到错误事件:', {
+        originalConsoleError.call(console, '捕获到错误事件:', {
           message: event.message,
           error: event.error,
           filename: event.filename,
@@ -81,7 +177,6 @@
           let message = event.message || '发生了一个未知错误';
           let stack = '';
 
-          // 尝试从不同来源获取堆栈信息
           if (event.error && event.error.stack) {
             stack = event.error.stack;
           } else if (event.error && event.error.message) {
@@ -93,18 +188,17 @@
             stack = '无堆栈信息';
           }
 
-          showErrorDialog(message, stack);
+          handleError(message, stack, 'error');
         } catch (err) {
-          console.error('[Error Handler] 处理错误失败:', err);
+          originalConsoleError.call(console, '[Error Handler] 处理错误失败:', err);
         }
 
-        // 阻止默认的错误处理
         event.preventDefault();
-      });
+      }, true); // ⚠️ 使用捕获阶段
 
       // 捕获未处理的 Promise 拒绝
       window.addEventListener('unhandledrejection', function (event) {
-        console.error('捕获到未处理的 Promise 拒绝:', event.reason);
+        originalConsoleError.call(console, '捕获到未处理的 Promise 拒绝:', event.reason);
 
         try {
           const message = event.reason && event.reason.message
@@ -112,44 +206,69 @@
             : String(event.reason || '未知 Promise 拒绝');
           const stack = event.reason && event.reason.stack ? event.reason.stack : '';
 
-          showErrorDialog('Promise 拒绝: ' + message, stack);
+          handleError('Promise 拒绝: ' + message, stack, 'unhandledrejection');
         } catch (err) {
-          console.error('[Error Handler] 处理 Promise 拒绝失败:', err);
+          originalConsoleError.call(console, '[Error Handler] 处理 Promise 拒绝失败:', err);
         }
 
-        // 阻止默认的错误处理
         event.preventDefault();
       });
 
-      // 拦截 console.warn 和 console.error 来捕获库的警告和错误
-      (function () {
-        const originalWarn = console.warn;
+      // 拦截 console.error（可选，捕获库的错误输出）
+      console.error = function () {
+        const args = Array.prototype.slice.call(arguments);
+        const message = args.join(' ');
 
-        console.error = function () {
-          const args = Array.prototype.slice.call(arguments);
-          const message = args.join(' ');
+        // 先调用原始的 console.error
+        originalConsoleError.apply(console, args);
 
-          // 先调用原始的 console.error，避免循环
-          originalConsoleError.apply(console, args);
-
-          // 检查是否是重要错误，并且不是来自 Error Dialog 本身
-          const lowerMessage = message.toLowerCase();
-          const shouldShow = !message.includes('[Error Dialog]') &&
-            (lowerMessage.includes('error') || lowerMessage.includes('failed'));
-          
-          if (shouldShow) {
-            try {
-              // 获取调用堆栈
-              const stack = new Error().stack || '无堆栈信息';
-              showErrorDialog('错误: ' + message, stack);
-            } catch (err) {
-              originalConsoleError.call(console, '[Error Dialog] 显示对话框失败:', err);
-            }
+        // 检查是否是重要错误
+        const lowerMessage = message.toLowerCase();
+        const shouldShow = !message.includes('[Error Dialog]') && 
+                          !message.includes('[Error Handler]') &&
+                          (lowerMessage.includes('error') || lowerMessage.includes('failed'));
+        
+        if (shouldShow) {
+          try {
+            const stack = new Error().stack || '无堆栈信息';
+            handleError('控制台错误: ' + message, stack, 'console.error');
+          } catch (err) {
+            originalConsoleError.call(console, '[Error Handler] 显示对话框失败:', err);
           }
-        };
-      })();
+        }
+      };
 
-      console.log('%c[Dev Template] 全局错误捕获已启用', 'color: #52c41a; font-weight: bold;');
+      // 暴露 React 就绪标记
+      window.__ERROR_SYSTEM__ = {
+        markReactReady: function() {
+          reactReady = true;
+          console.log('%c[Error System] React 错误系统已就绪', 'color: #52c41a; font-weight: bold;');
+          
+          // 如果有降级 UI 显示，迁移到 React 组件
+          if (fallbackUIShown && errorQueue.length > 0 && typeof window.showErrorDialog === 'function') {
+            const overlay = document.getElementById('__fallback_error_overlay__');
+            if (overlay) {
+              overlay.style.display = 'none';
+            }
+            errorQueue.forEach(function(err) {
+              window.showErrorDialog(err.message, err.stack);
+            });
+          }
+        },
+        getErrorQueue: function() {
+          return errorQueue;
+        },
+        clearErrors: function() {
+          errorQueue.length = 0;
+          const overlay = document.getElementById('__fallback_error_overlay__');
+          if (overlay && overlay.parentNode) {
+            document.body.removeChild(overlay);
+            fallbackUIShown = false;
+          }
+        }
+      };
+
+      console.log('%c[Error System] 全局错误捕获已启用（增强版）', 'color: #52c41a; font-weight: bold;');
     })();
   </script>
 

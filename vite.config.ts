@@ -693,6 +693,27 @@ const config: any = {
   resolve: {
     alias: [
       { find: '@', replacement: path.resolve(__dirname, './src') },
+      // spec-template 需要真正的 React，不使用 shim
+      !isIifeBuild && {
+        find: /^react$/,
+        replacement: (id: string, importer?: string) => {
+          // 如果是从 spec-template 导入，使用真正的 React
+          if (importer && importer.includes('/spec-template/')) {
+            return 'react';
+          }
+          return path.resolve(__dirname, 'src/common/react-shim.js');
+        }
+      },
+      !isIifeBuild && {
+        find: /^react-dom$/,
+        replacement: (id: string, importer?: string) => {
+          // 如果是从 spec-template 导入，使用真正的 React DOM
+          if (importer && importer.includes('/spec-template/')) {
+            return 'react-dom';
+          }
+          return path.resolve(__dirname, 'src/common/react-dom-shim.js');
+        }
+      },
       !isIifeBuild && {
         find: /^react\/.*/,
         replacement: path.resolve(__dirname, 'src/common/react-shim.js')
@@ -700,22 +721,14 @@ const config: any = {
       !isIifeBuild && {
         find: /^react-dom\/.*/,
         replacement: path.resolve(__dirname, 'src/common/react-dom-shim.js')
-      },
-      !isIifeBuild && {
-        find: 'react',
-        replacement: path.resolve(__dirname, 'src/common/react-shim.js')
-      },
-      !isIifeBuild && {
-        find: 'react-dom',
-        replacement: path.resolve(__dirname, 'src/common/react-dom-shim.js')
       }
-    ].filter(Boolean) as { find: string | RegExp; replacement: string }[]
+    ].filter(Boolean) as { find: string | RegExp; replacement: string | ((id: string, importer?: string) => string) }[]
   },
 
   server: {
     port: axhubConfig.server?.port || 51720,
-    host: axhubConfig.server?.host || 'localhost',
-    open: '/',
+    host: '0.0.0.0', // 监听所有网络接口，支持局域网访问
+    open: true, // 启动时自动打开浏览器
     cors: true,
     headers: {
       'Access-Control-Allow-Origin': '*',
