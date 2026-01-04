@@ -370,7 +370,6 @@ function handleMessage(
       break;
 
     case 'ping':
-      // 心跳检测
       ws.send(JSON.stringify({ type: 'pong' }));
       break;
 

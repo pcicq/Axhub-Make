@@ -25,6 +25,9 @@ vite.config.*.timestamp-*
 # Local configuration
 axhub.config.json
 
+# Dev server info (for AI debugging)
+.dev-server-info.json
+
 # IDE and editors
 .idea/
 .obsidian/
@@ -103,4 +106,8 @@ storybook-static/
 # Temporary folders
 tmp/
 temp/
+
+# Database files (keep directory structure)
+assets/database/*.json
+!assets/database/.gitkeep
 

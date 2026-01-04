@@ -111,3 +111,19 @@ src/themes/<theme-key>/
 必须注意：
 - 无论输入来源如何，最终 `designToken.json` 都必须包含 `name`
 - 当信息不足时，先保证主题“可用”，再逐步补齐 token（避免产出不可运行的主题）
+
+## 4) 开发后验收流程
+
+### 4.1 运行验收脚本
+
+```bash
+node scripts/check-app-ready.mjs /themes/[主题名]
+```
+
+脚本返回 JSON 格式结果，包含 `status`、`url`、`homeUrl`、`errors` 等字段。
+
+### 4.2 根据状态处理
+
+**状态为 ERROR**：根据 `errors` 字段中的错误信息直接修复代码，修复后重新运行验收脚本。
+
+**状态为 READY**：使用 Chrome DevTools MCP（或 Playwright MCP）访问 `url` 进行功能验收，检查控制台是否有错误。如模型支持视觉能力，可使用 `take_screenshot` 检查主题展示效果。如有错误或功能不符合预期，**此时才需要阅读 `debugging-guide.md` 进行自动化调试和修复**

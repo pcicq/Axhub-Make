@@ -13,6 +13,8 @@ import { virtualHtmlPlugin } from './vite-plugins/virtualHtml';
 import { websocketPlugin } from './vite-plugins/websocketPlugin';
 import { injectStablePageIds } from './vite-plugins/injectStablePageIds';
 import { fileSystemApiPlugin } from './vite-plugins/fileSystemApiPlugin';
+import { dataManagementApiPlugin } from './vite-plugins/dataManagementApiPlugin';
+import { mediaManagementApiPlugin } from './vite-plugins/mediaManagementApiPlugin';
 import { codeReviewPlugin } from './vite-plugins/codeReviewPlugin';
 import { mcpInstallPlugin } from './vite-plugins/mcpInstallPlugin';
 import { autoDebugPlugin } from './vite-plugins/autoDebugPlugin';
@@ -49,6 +51,41 @@ function getLocalIP(): string {
   }
   
   return 'localhost';
+}
+
+/**
+ * 写入开发服务器信息到文件的插件
+ * 用于 AI 调试时读取服务器配置信息
+ */
+function writeDevServerInfoPlugin(): Plugin {
+  return {
+    name: 'write-dev-server-info',
+    configureServer(server: any) {
+      server.httpServer?.once('listening', () => {
+        try {
+          const localIP = getLocalIP();
+          const actualPort = server.httpServer?.address()?.port || server.config.server?.port || 5173;
+          const host = server.config.server?.host || 'localhost';
+          
+          const devServerInfo = {
+            port: actualPort,
+            host: host,
+            localIP: localIP,
+            timestamp: new Date().toISOString()
+          };
+          
+          const infoPath = path.resolve(__dirname, '.dev-server-info.json');
+          fs.writeFileSync(infoPath, JSON.stringify(devServerInfo, null, 2), 'utf8');
+          
+          console.log('\n✅ Dev server info written to .dev-server-info.json');
+          console.log(`   Local:   http://localhost:${actualPort}`);
+          console.log(`   Network: http://${localIP}:${actualPort}\n`);
+        } catch (error) {
+          console.error('Failed to write dev server info:', error);
+        }
+      });
+    }
+  };
 }
 
 /**
@@ -297,7 +334,8 @@ function docsApiPlugin(): Plugin {
             }
 
             const docsDir = path.resolve(__dirname, 'assets/docs');
-            const docPath = path.join(docsDir, `${docName}.md`);
+            // 直接使用文件名（已包含扩展名）
+            const docPath = path.join(docsDir, docName);
 
             // 安全检查：确保路径在 assets/docs 目录内
             if (!docPath.startsWith(docsDir)) {
@@ -308,7 +346,17 @@ function docsApiPlugin(): Plugin {
 
             if (fs.existsSync(docPath)) {
               const content = fs.readFileSync(docPath, 'utf8');
-              res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+              // 根据文件扩展名设置 Content-Type
+              const ext = path.extname(docPath);
+              const contentTypeMap: Record<string, string> = {
+                '.md': 'text/markdown; charset=utf-8',
+                '.csv': 'text/csv; charset=utf-8',
+                '.json': 'application/json; charset=utf-8',
+                '.yaml': 'text/yaml; charset=utf-8',
+                '.yml': 'text/yaml; charset=utf-8',
+                '.txt': 'text/plain; charset=utf-8'
+              };
+              res.setHeader('Content-Type', contentTypeMap[ext] || 'text/plain; charset=utf-8');
               res.end(content);
             } else {
               res.statusCode = 404;
@@ -326,19 +374,23 @@ function docsApiPlugin(): Plugin {
         try {
           const docsDir = path.resolve(__dirname, 'assets/docs');
           const docs: any[] = [];
+          // 支持的文档格式
+          const supportedExtensions = ['.md', '.csv', '.json', '.yaml', '.yml', '.txt'];
 
           if (fs.existsSync(docsDir)) {
             const items = fs.readdirSync(docsDir, { withFileTypes: true });
             
             items.forEach(item => {
-              // 只读取第一层目录的 .md 文件
-              if (item.isFile() && item.name.endsWith('.md')) {
-                const name = item.name.replace('.md', '');
-                
-                docs.push({
-                  name,
-                  displayName: name
-                });
+              // 读取支持的文件格式
+              if (item.isFile()) {
+                const ext = path.extname(item.name);
+                if (supportedExtensions.includes(ext)) {
+                  // 保留完整文件名（包含扩展名）
+                  docs.push({
+                    name: item.name,
+                    displayName: item.name
+                  });
+                }
               }
             });
           }
@@ -365,10 +417,31 @@ function docsApiPlugin(): Plugin {
               // 只读取 .md 文件
               if (item.isFile() && item.name.endsWith('.md')) {
                 const name = item.name.replace('.md', '');
+                const filePath = path.join(librariesDir, item.name);
+                const content = fs.readFileSync(filePath, 'utf8');
                 
+                // 尝试从文件内容中提取标题
+                let displayName = name;
+                const titleMatch = content.match(/^#\s+(.+)$/m);
+                if (titleMatch) {
+                  displayName = titleMatch[1].trim();
+                }
+
+                // 提取第一段作为描述
+                let description = '';
+                const lines = content.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i].trim();
+                  if (line && !line.startsWith('#')) {
+                    description = line;
+                    break;
+                  }
+                }
+
                 libraries.push({
                   name,
-                  displayName: name
+                  displayName,
+                  description
                 });
               }
             });
@@ -511,6 +584,95 @@ function sourceApiPlugin(): Plugin {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: e.message }));
         }
+      });
+    }
+  };
+}
+
+function unsetReferenceApiPlugin(): Plugin {
+  return {
+    name: 'unset-reference-api-plugin',
+    configureServer(server: any) {
+      server.middlewares.use('/api/unset-reference', (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => body += chunk);
+        req.on('end', () => {
+          try {
+            const { path: targetPath } = JSON.parse(body);
+            
+            if (!targetPath) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Missing path parameter' }));
+              return;
+            }
+
+            // Validate path
+            if (targetPath.includes('..') || targetPath.startsWith('/')) {
+              res.statusCode = 403;
+              res.end(JSON.stringify({ error: 'Invalid path' }));
+              return;
+            }
+
+            const srcDir = path.resolve(process.cwd(), 'src', targetPath);
+
+            if (!fs.existsSync(srcDir)) {
+              res.statusCode = 404;
+              res.end(JSON.stringify({ error: 'Directory not found' }));
+              return;
+            }
+
+            // Check if this is a reference item
+            const folderName = path.basename(srcDir);
+            if (!folderName.startsWith('ref-')) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: '该项目不是参考项目' }));
+              return;
+            }
+
+            // Rename folder: remove 'ref-' prefix
+            const newFolderName = folderName.substring(4); // Remove 'ref-'
+            const parentDir = path.dirname(srcDir);
+            const newSrcDir = path.join(parentDir, newFolderName);
+
+            // Check if target name already exists
+            if (fs.existsSync(newSrcDir)) {
+              res.statusCode = 409;
+              res.end(JSON.stringify({ error: '同名项目已存在' }));
+              return;
+            }
+
+            fs.renameSync(srcDir, newSrcDir);
+
+            // Update entries.json
+            const entriesPath = path.resolve(process.cwd(), 'entries.json');
+            if (fs.existsSync(entriesPath)) {
+              const entries = JSON.parse(fs.readFileSync(entriesPath, 'utf8'));
+              // Update the key in entries
+              // e.g., 'elements/ref-button' -> 'elements/button'
+              const oldKey = targetPath; // e.g., 'elements/ref-button'
+              const newKey = targetPath.replace(/\/ref-/, '/'); // e.g., 'elements/button'
+              
+              if (entries.js && entries.js[oldKey]) {
+                entries.js[newKey] = entries.js[oldKey];
+                delete entries.js[oldKey];
+                fs.writeFileSync(entriesPath, JSON.stringify(entries, null, 2));
+              }
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({ success: true }));
+          } catch (e: any) {
+            console.error('Unset reference error:', e);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
       });
     }
   };
@@ -661,6 +823,7 @@ const isIifeBuild = hasSingleEntry;
 const config: any = {
   plugins: [
     tailwindcss(), // Tailwind CSS Vite 插件
+    writeDevServerInfoPlugin(), // 写入开发服务器信息
     serveAdminPlugin(), // 服务 admin 目录（需要在最前面）
     injectStablePageIds(), // 注入稳定 ID（所有模式都启用）
     virtualHtmlPlugin(),
@@ -670,8 +833,11 @@ const config: any = {
     docsApiPlugin(), // 提供 /api/docs 端点
     uploadDocsApiPlugin(),
     sourceApiPlugin(), // 提供 /api/source 端点
+    unsetReferenceApiPlugin(), // 提供 /api/unset-reference 端点
     themesApiPlugin(), // 提供 /api/themes 端点
     fileSystemApiPlugin(),
+    dataManagementApiPlugin(), // 提供 /api/data 端点
+    mediaManagementApiPlugin(), // 提供 /api/media 端点
     codeReviewPlugin(), // 提供 /api/code-review 端点
     mcpInstallPlugin(), // 提供 /api/install-mcp 端点
     autoDebugPlugin(), // 提供自动调试 API 端点
