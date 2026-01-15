@@ -794,7 +794,7 @@ function unsetReferenceApiPlugin(): Plugin {
               return;
             }
 
-            const srcDir = path.resolve(process.cwd(), 'src', targetPath);
+            const srcDir = path.resolve(__dirname, 'src', targetPath);
 
             if (!fs.existsSync(srcDir)) {
               res.statusCode = 404;
@@ -825,7 +825,7 @@ function unsetReferenceApiPlugin(): Plugin {
             fs.renameSync(srcDir, newSrcDir);
 
             // Update entries.json
-            const entriesPath = path.resolve(process.cwd(), 'entries.json');
+            const entriesPath = path.resolve(__dirname, 'entries.json');
             if (fs.existsSync(entriesPath)) {
               const entries = JSON.parse(fs.readFileSync(entriesPath, 'utf8'));
               // Update the key in entries
@@ -1006,7 +1006,7 @@ function themesApiPlugin(): Plugin {
 }
 
 // 读取配置文件
-const configPath = path.resolve(process.cwd(), 'axhub.config.json');
+const configPath = path.resolve(__dirname, 'axhub.config.json');
 let axhubConfig = { server: { host: 'localhost', port: 51720, allowLAN: true } };
 if (fs.existsSync(configPath)) {
   try {
@@ -1016,7 +1016,7 @@ if (fs.existsSync(configPath)) {
   }
 }
 
-const entriesPath = path.resolve(process.cwd(), 'entries.json');
+const entriesPath = path.resolve(__dirname, 'entries.json');
 let entries = { js: {}, html: {} };
 if (fs.existsSync(entriesPath)) {
   entries = JSON.parse(fs.readFileSync(entriesPath, 'utf8'));
@@ -1117,6 +1117,7 @@ const config: any = {
   server: {
     port: axhubConfig.server?.port || 51720,
     host: axhubConfig.server?.allowLAN !== false ? '0.0.0.0' : 'localhost', // 根据配置决定是否允许局域网访问
+    // strictPort: false 是默认值，端口被占用时会自动尝试下一个端口
     open: true, // 启动时自动打开浏览器
     cors: true,
     headers: {
@@ -1127,7 +1128,7 @@ const config: any = {
   },
 
   build: {
-    outDir: path.resolve(process.cwd(), 'dist'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: !isIifeBuild,
     target: isIifeBuild ? 'es2015' : 'esnext',
     assetsInlineLimit: 512 * 1024, // 512KB - 小于此大小的图片会被内联为 Base64

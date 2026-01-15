@@ -9,11 +9,15 @@
  *  - 捕获已存在和后续构建/热更新错误
  *  - 页面可访问即 READY，出现错误即 ERROR
  *  - 超时返回 TIMEOUT
+ *  - 默认包含构建校验，可通过 --skip-build 跳过
  *
  * 使用：
  *   node scripts/check-app-ready.mjs [页面路径]
  *   例如：node scripts/check-app-ready.mjs /elements/button
  *        node scripts/check-app-ready.mjs /pages/home
+ *   
+ *   跳过构建校验：
+ *   node scripts/check-app-ready.mjs --skip-build /elements/button
  *
  * 输出（JSON）：
  * {
@@ -22,7 +26,8 @@
  *   message: "...",
  *   url: "http://localhost:51720/elements/button",
  *   errors: [...],
- *   logs: [...]
+ *   logs: [...],
+ *   buildCheck?: { status: "SUCCESS" | "FAILED", errors: [...], logs: [...] }
  * }
  * =====================================================
  */
@@ -38,14 +43,20 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 /* ================= 配置 ================= */
+// 解析命令行参数
+const args = process.argv.slice(2);
+const skipBuild = args.includes('--skip-build');
+const pagePath = args.find(arg => !arg.startsWith('--')) || '/';
+
 const CONFIG = {
   devCommand: 'npm run dev',        // 启动 Vite 的命令
   devServerInfoPath: path.resolve(__dirname, '../.dev-server-info.json'), // 开发服务器信息文件
   defaultPort: 51720,               // 默认端口（从 axhub.config.json 读取）
-  pagePath: process.argv[2] || '/', // 目标页面路径（从命令行参数获取）
+  pagePath,                         // 目标页面路径（从命令行参数获取）
   pollIntervalMs: 500,              // 页面轮询间隔
   stableCheckMs: 1000,              // 错误稳定判断时间
-  timeoutMs: 30_000                 // 总超时
+  timeoutMs: 30_000,                // 总超时
+  skipBuild                         // 是否跳过构建校验
 }
 
 /* ================= 工具函数 ================= */
@@ -339,6 +350,85 @@ function addHomeUrl(result, serverInfo) {
   }
 }
 
+/**
+ * 执行独立构建校验
+ * 针对指定的入口 key 执行单独构建，不是全量构建
+ */
+async function runBuildCheck(entryKey) {
+  logs.push(`Starting build check for entry: ${entryKey}`)
+  
+  return new Promise((resolve) => {
+    const buildErrors = []
+    const buildLogs = []
+    
+    // 使用 ENTRY_KEY 环境变量触发单独构建
+    const buildProcess = spawn('npx', ['vite', 'build'], {
+      cwd: path.resolve(__dirname, '..'),
+      env: { ...process.env, ENTRY_KEY: entryKey },
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+    
+    buildProcess.stdout.on('data', (data) => {
+      const text = data.toString().trim()
+      if (text) {
+        buildLogs.push(text)
+        logs.push(`[BUILD] ${text}`)
+      }
+    })
+    
+    buildProcess.stderr.on('data', (data) => {
+      const text = data.toString().trim()
+      if (text) {
+        buildLogs.push(text)
+        logs.push(`[BUILD ERROR] ${text}`)
+        // 捕获构建错误
+        if (/error|failed/i.test(text) && !/deprecated|experimental/i.test(text)) {
+          buildErrors.push(text)
+        }
+      }
+    })
+    
+    buildProcess.on('close', (code) => {
+      if (code === 0 && buildErrors.length === 0) {
+        logs.push(`Build check completed successfully for ${entryKey}`)
+        resolve({
+          status: 'SUCCESS',
+          message: `Build completed successfully for ${entryKey}`,
+          errors: [],
+          logs: buildLogs
+        })
+      } else {
+        logs.push(`Build check failed for ${entryKey} with exit code ${code}`)
+        resolve({
+          status: 'FAILED',
+          message: `Build failed for ${entryKey} (exit code: ${code})`,
+          errors: buildErrors.length > 0 ? buildErrors : [`Build process exited with code ${code}`],
+          logs: buildLogs
+        })
+      }
+    })
+    
+    buildProcess.on('error', (err) => {
+      logs.push(`Build process error: ${err.message}`)
+      resolve({
+        status: 'FAILED',
+        message: `Build process error: ${err.message}`,
+        errors: [err.message],
+        logs: buildLogs
+      })
+    })
+  })
+}
+
+/**
+ * 从页面路径推断入口 key
+ * 例如：/elements/button -> elements/button
+ */
+function getEntryKeyFromPath(pagePath) {
+  // 移除开头的斜杠
+  return pagePath.replace(/^\//, '')
+}
+
 /* ================= 主流程 ================= */
 async function main() {
   try {
@@ -350,6 +440,30 @@ async function main() {
     logs.push(`Target URL: ${pageUrl}`)
     logs.push(`Server info: port=${serverInfo.port}, host=${serverInfo.host}`)
     
+    // 步骤 1: 执行构建校验（除非指定 --skip-build）
+    let buildResult = null
+    if (!CONFIG.skipBuild) {
+      const entryKey = getEntryKeyFromPath(CONFIG.pagePath)
+      logs.push(`Build check enabled for entry: ${entryKey}`)
+      buildResult = await runBuildCheck(entryKey)
+      
+      // 如果构建失败，直接返回错误
+      if (buildResult.status === 'FAILED') {
+        return jsonExit(addHomeUrl({
+          status: 'ERROR',
+          phase: 'build',
+          message: buildResult.message,
+          url: pageUrl,
+          errors: buildResult.errors,
+          logs,
+          buildCheck: buildResult
+        }, serverInfo), 1)
+      }
+    } else {
+      logs.push('Build check skipped (--skip-build flag)')
+    }
+    
+    // 步骤 2: 开发服务器校验
     // 检查服务器是否已经在运行
     const serverAlreadyRunning = await isServerAlive(`http://${accessibleHost}:${serverInfo.port}`)
     
@@ -371,7 +485,8 @@ async function main() {
         message: 'Page never became reachable',
         url: pageUrl,
         errors,
-        logs
+        logs,
+        buildCheck: buildResult
       }, serverInfo), 1)
     }
     
@@ -381,7 +496,13 @@ async function main() {
     // 清理进程
     if (viteChild) viteChild.kill()
     
-    jsonExit(addHomeUrl(result, serverInfo), result.status === 'READY' ? 0 : 1)
+    // 添加构建结果到最终输出
+    const finalResult = {
+      ...result,
+      buildCheck: buildResult
+    }
+    
+    jsonExit(addHomeUrl(finalResult, serverInfo), result.status === 'READY' ? 0 : 1)
   } catch (err) {
     const serverInfo = getServerInfo()
     jsonExit(addHomeUrl({

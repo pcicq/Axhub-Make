@@ -118,12 +118,27 @@ function installMCPBatch(input: {
 
   /* ---------- write config ---------- */
   const dir = path.dirname(configPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+    }
+    
+    // 检查目录是否可写
+    fs.accessSync(dir, fs.constants.W_OK);
+    
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o644 });
+    
+    return { success: true, configPath };
+  } catch (error: any) {
+    if (error.code === 'EPERM' || error.code === 'EACCES') {
+      throw new Error(
+        `Permission denied: Cannot write to ${configPath}. ` +
+        `Please ensure the application is closed and you have write permissions. ` +
+        `On macOS, you may need to grant Full Disk Access in System Settings > Privacy & Security.`
+      );
+    }
+    throw error;
   }
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-
-  return { success: true, configPath };
 }
 
 export function mcpInstallPlugin(): Plugin {

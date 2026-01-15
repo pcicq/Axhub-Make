@@ -362,7 +362,93 @@
           // 渲染组件
           renderComponent(Component);
         }).catch(err => {
-          console.error('[Dev Template] 组件加载失败:', err);
+          // 增强错误信息
+          const entryPath = '{{ENTRY}}';
+          let errorMessage = `组件加载失败: ${entryPath}`;
+          let errorDetails = [];
+
+          // 分析错误类型
+          if (err.message) {
+            if (err.message.includes('Failed to fetch')) {
+              errorDetails.push('• 可能原因：');
+              errorDetails.push('  1. 组件文件不存在或路径错误');
+              errorDetails.push('  2. 组件文件存在语法错误，导致编译失败');
+              errorDetails.push('  3. 组件依赖的模块无法解析');
+              errorDetails.push('  4. Vite 开发服务器未正确编译该文件');
+              errorDetails.push('');
+              errorDetails.push('• 建议检查：');
+              errorDetails.push(`  1. 确认文件存在: ${entryPath}`);
+              errorDetails.push('  2. 查看浏览器 Network 面板，检查该文件的 HTTP 状态码');
+              errorDetails.push('  3. 查看 Vite 开发服务器终端输出，是否有编译错误');
+              errorDetails.push('  4. 尝试直接访问该文件 URL，查看具体错误信息');
+            } else if (err.message.includes('does not provide an export')) {
+              errorDetails.push('• 错误原因：模块导出格式不正确');
+              errorDetails.push('• 建议检查：');
+              errorDetails.push('  1. 确认组件文件导出了 Component 或 default');
+              errorDetails.push('  2. 检查 export 语法是否正确');
+            } else {
+              errorDetails.push(`• 错误信息: ${err.message}`);
+            }
+          }
+
+          // 构建完整的错误信息
+          const fullErrorMessage = [
+            errorMessage,
+            '',
+            ...errorDetails,
+            '',
+            '• 完整错误对象:',
+            JSON.stringify({
+              name: err.name,
+              message: err.message,
+              stack: err.stack
+            }, null, 2)
+          ].join('\n');
+
+          console.error('[Dev Template] 组件加载失败:\n' + fullErrorMessage);
+
+          // 在页面上显示友好的错误提示
+          const root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = `
+              <div style="padding: 40px; max-width: 800px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="background: #fff1f0; border: 1px solid #ffccc7; border-radius: 8px; padding: 24px;">
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <svg viewBox="64 64 896 896" width="24" height="24" fill="#ff4d4f">
+                      <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm-32 232c0-4.4 3.6-8 8-8h48c4.4 0 8 3.6 8 8v272c0 4.4-3.6 8-8 8h-48c-4.4 0-8-3.6-8-8V296zm32 440a48.01 48.01 0 0 1 0-96 48.01 48.01 0 0 1 0 96z"></path>
+                    </svg>
+                    <h2 style="margin: 0; color: #cf1322; font-size: 20px; font-weight: 600;">组件加载失败</h2>
+                  </div>
+                  
+                  <div style="background: white; border-radius: 4px; padding: 16px; margin-bottom: 16px;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: #262626;">入口文件:</div>
+                    <code style="display: block; padding: 8px 12px; background: #f5f5f5; border-radius: 4px; font-size: 13px; color: #d4380d; word-break: break-all;">${entryPath}</code>
+                  </div>
+
+                  ${errorDetails.length > 0 ? `
+                    <div style="background: white; border-radius: 4px; padding: 16px; margin-bottom: 16px;">
+                      <pre style="margin: 0; font-size: 13px; line-height: 1.6; color: #595959; white-space: pre-wrap; word-break: break-word;">${errorDetails.join('\n')}</pre>
+                    </div>
+                  ` : ''}
+
+                  <details style="background: white; border-radius: 4px; padding: 16px;">
+                    <summary style="cursor: pointer; font-weight: 600; color: #262626; user-select: none;">查看完整错误信息</summary>
+                    <pre style="margin: 12px 0 0 0; padding: 12px; background: #f5f5f5; border-radius: 4px; font-size: 12px; color: #595959; overflow-x: auto; white-space: pre-wrap; word-break: break-all;">${JSON.stringify({
+                      name: err.name,
+                      message: err.message,
+                      stack: err.stack
+                    }, null, 2)}</pre>
+                  </details>
+
+                  <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ffccc7;">
+                    <div style="font-size: 13px; color: #8c8c8c;">
+                      💡 提示：打开浏览器开发者工具的 Network 和 Console 面板查看更多信息
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
         });
       } else {
         setTimeout(waitForBootstrap, 10);
