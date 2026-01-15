@@ -57,6 +57,118 @@ function getLocalIP(): string {
 }
 
 /**
+ * 局域网访问控制插件
+ * 根据 allowLAN 配置决定是否允许非本地 IP 访问
+ */
+function lanAccessControlPlugin(): Plugin {
+  let allowLAN = true; // 在启动时确定，不再动态读取
+  
+  return {
+    name: 'lan-access-control',
+    configResolved(config: any) {
+      // 在配置解析时读取 allowLAN 设置
+      const configPath = path.resolve(__dirname, 'axhub.config.json');
+      
+      if (fs.existsSync(configPath)) {
+        try {
+          const axhubConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          allowLAN = axhubConfig.server?.allowLAN !== false;
+          console.log(`🔒 局域网访问控制: ${allowLAN ? '允许' : '禁止'}`);
+        } catch (e) {
+          // 配置读取失败，使用默认值
+        }
+      }
+    },
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        // 如果允许局域网访问，直接放行
+        if (allowLAN) {
+          return next();
+        }
+        
+        // 不允许局域网访问，检查请求来源
+        const clientIP = req.socket.remoteAddress || req.connection.remoteAddress;
+        
+        // 本地 IP 列表（IPv4 和 IPv6）
+        const localIPs = [
+          '127.0.0.1',
+          '::1',
+          '::ffff:127.0.0.1',
+          'localhost'
+        ];
+        
+        // 检查是否为本地访问
+        const isLocalAccess = localIPs.some(ip => clientIP?.includes(ip));
+        
+        if (!isLocalAccess) {
+          // 非本地访问，返回 403
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>访问被拒绝</title>
+              <style>
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  margin: 0;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }
+                .container {
+                  background: white;
+                  padding: 40px;
+                  border-radius: 10px;
+                  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                  text-align: center;
+                  max-width: 500px;
+                }
+                h1 {
+                  color: #e74c3c;
+                  margin: 0 0 20px 0;
+                }
+                p {
+                  color: #666;
+                  line-height: 1.6;
+                }
+                .ip {
+                  background: #f5f5f5;
+                  padding: 10px;
+                  border-radius: 5px;
+                  font-family: monospace;
+                  margin: 20px 0;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>🚫 访问被拒绝</h1>
+                <p>此服务器已禁用局域网访问。</p>
+                <p>只允许本地访问（localhost/127.0.0.1）。</p>
+                <div class="ip">您的 IP: ${clientIP}</div>
+                <p style="font-size: 12px; color: #999;">
+                  如需允许局域网访问，请在配置文件中设置 allowLAN: true 并重启服务器
+                </p>
+              </div>
+            </body>
+            </html>
+          `);
+          return;
+        }
+        
+        // 本地访问，放行
+        next();
+      });
+    }
+  };
+}
+
+/**
  * 写入开发服务器信息到文件的插件
  * 用于 AI 调试时读取服务器配置信息
  */
@@ -68,11 +180,22 @@ function writeDevServerInfoPlugin(): Plugin {
         try {
           const localIP = getLocalIP();
           const actualPort = server.httpServer?.address()?.port || server.config.server?.port || 5173;
-          const host = server.config.server?.host || 'localhost';
+          
+          // 读取用户配置的 host（用于浏览器显示）
+          const configPath = path.resolve(__dirname, 'axhub.config.json');
+          let displayHost = 'localhost'; // 默认显示 localhost
+          if (fs.existsSync(configPath)) {
+            try {
+              const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+              displayHost = config.server?.host || 'localhost';
+            } catch (e) {
+              // 配置文件读取失败，使用默认值
+            }
+          }
           
           const devServerInfo = {
             port: actualPort,
-            host: host,
+            host: displayHost, // 用户配置的显示域名
             localIP: localIP,
             timestamp: new Date().toISOString()
           };
@@ -81,7 +204,7 @@ function writeDevServerInfoPlugin(): Plugin {
           fs.writeFileSync(infoPath, JSON.stringify(devServerInfo, null, 2), 'utf8');
           
           console.log('\n✅ Dev server info written to .dev-server-info.json');
-          console.log(`   Local:   http://localhost:${actualPort}`);
+          console.log(`   Local:   http://${displayHost}:${actualPort}`);
           console.log(`   Network: http://${localIP}:${actualPort}\n`);
         } catch (error) {
           console.error('Failed to write dev server info:', error);
@@ -1031,7 +1154,7 @@ let rollupInput: Record<string, string> = htmlEntries;
 
 if (hasSingleEntry) {
   if (!jsEntries[entryKey as string]) {
-    throw new Error(`ENTRY_KEY=${entryKey} 未在 entries.js 中找到对应入口文件`);
+    throw new Error(`ENTRY_KEY=${entryKey} 未在 entries.json 中找到对应入口文件。请确保目录 src/${entryKey} 存在且包含 index.tsx 文件。`);
   }
   rollupInput = { [entryKey as string]: jsEntries[entryKey as string] };
 }
@@ -1041,6 +1164,7 @@ const isIifeBuild = hasSingleEntry;
 const config: any = {
   plugins: [
     tailwindcss(), // Tailwind CSS Vite 插件
+    lanAccessControlPlugin(), // 局域网访问控制（必须在最前面）
     writeDevServerInfoPlugin(), // 写入开发服务器信息
     serveAdminPlugin(), // 服务 admin 目录（需要在最前面）
     injectStablePageIds(), // 注入稳定 ID（所有模式都启用）
@@ -1116,8 +1240,8 @@ const config: any = {
 
   server: {
     port: 51720, // 默认从 51720 开始，如果被占用会自动尝试 51721, 51722...
-    host: axhubConfig.server?.allowLAN !== false ? '0.0.0.0' : 'localhost', // 根据配置决定是否允许局域网访问
-    // strictPort: false 是默认值，端口被占用时会自动尝试下一个端口
+    strictPort: false, // 端口被占用时自动尝试下一个端口
+    host: '0.0.0.0', // 统一使用 0.0.0.0 绑定，确保端口检测正确
     open: true, // 启动时自动打开浏览器
     cors: true,
     // HMR 配置

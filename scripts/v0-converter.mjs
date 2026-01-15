@@ -105,16 +105,16 @@ function processFiles(pageDir) {
       const fileDir = path.dirname(file);
       const relativePath = path.relative(fileDir, pageDir);
       
-      // 替换 from '@/...'
+      // 替换 from '@/...' 和 from "@/..."
       content = content.replace(
-        /from\s+['"]@\//g,
-        `from '${relativePath}/`
+        /from\s+(['"])@\//g,
+        `from $1${relativePath}/`
       );
       
-      // 替换 import type ... from '@/...'
+      // 替换 import type ... from '@/...' 和 import type ... from "@/..."
       content = content.replace(
-        /import\s+type\s+(.*from\s+)['"]@\//g,
-        `import type $1'${relativePath}/`
+        /import\s+type\s+(.*from\s+)(['"])@\//g,
+        `import type $1$2${relativePath}/`
       );
       
       modified = true;
@@ -273,7 +273,7 @@ function generateTasksDocument(analysis, outputDir, pageName, tempDir) {
       grouped[item.import].push(item.file);
     });
     Object.entries(grouped).slice(0, 5).forEach(([imp, files]) => {
-      markdown += `- \`${imp}\` (${(files as string[]).length} 个文件)\n`;
+      markdown += `- \`${imp}\` (${files.length} 个文件)\n`;
     });
     if (Object.keys(grouped).length > 5) {
       markdown += `- *...还有 ${Object.keys(grouped).length - 5} 种 imports*\n`;
@@ -361,15 +361,26 @@ V0 项目预处理器
   try {
     log('开始预处理 V0 项目...', 'info');
     
-    log('步骤 1/3: 复制项目文件...', 'progress');
+    log('步骤 1/4: 复制项目文件...', 'progress');
     const fileCount = copyDirectory(v0Dir, outputDir);
     log(`已复制 ${fileCount} 个文件`, 'info');
     
-    log('步骤 2/3: 处理确定性转换（删除 "use client"，转换路径别名）...', 'progress');
+    log('步骤 2/4: 复制 public/images 到页面根目录...', 'progress');
+    const publicImagesDir = path.join(v0Dir, 'public/images');
+    const pageImagesDir = path.join(outputDir, 'images');
+    let imageCount = 0;
+    if (fs.existsSync(publicImagesDir)) {
+      imageCount = copyDirectory(publicImagesDir, pageImagesDir);
+      log(`已复制 ${imageCount} 个图片文件到 src/pages/${outputName}/images/`, 'info');
+    } else {
+      log('未找到 public/images 目录，跳过', 'info');
+    }
+    
+    log('步骤 3/4: 处理确定性转换（删除 "use client"，转换路径别名）...', 'progress');
     const processedCount = processFiles(outputDir);
     log(`已处理 ${processedCount} 个文件`, 'info');
     
-    log('步骤 3/3: 分析项目并生成任务文档...', 'progress');
+    log('步骤 4/4: 分析项目并生成任务文档...', 'progress');
     const analysis = analyzeProject(outputDir);
     const { reportPath, mdPath } = generateTasksDocument(analysis, outputDir, outputName, `temp/${path.basename(v0Dir)}`);
     

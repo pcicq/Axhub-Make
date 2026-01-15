@@ -332,11 +332,62 @@ function addHomeUrl(result, serverInfo) {
 }
 
 /**
+ * 扫描并更新 entries.json
+ * 确保新创建的目录被包含在入口列表中
+ */
+async function scanEntries() {
+  logs.push('Scanning entries...')
+  
+  return new Promise((resolve) => {
+    const scanProcess = spawn('node', ['scripts/scan-entries.js'], {
+      cwd: path.resolve(__dirname, '..'),
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+    
+    scanProcess.stdout.on('data', (data) => {
+      const text = data.toString().trim()
+      if (text) logs.push(`[SCAN] ${text}`)
+    })
+    
+    scanProcess.stderr.on('data', (data) => {
+      const text = data.toString().trim()
+      if (text) logs.push(`[SCAN ERROR] ${text}`)
+    })
+    
+    scanProcess.on('close', (code) => {
+      if (code === 0) {
+        logs.push('Entry scanning completed')
+        resolve({ success: true })
+      } else {
+        logs.push(`Entry scanning failed with exit code ${code}`)
+        resolve({ success: false })
+      }
+    })
+    
+    scanProcess.on('error', (err) => {
+      logs.push(`Entry scanning error: ${err.message}`)
+      resolve({ success: false })
+    })
+  })
+}
+
+/**
  * 执行独立构建校验
  * 针对指定的入口 key 执行单独构建，不是全量构建
  */
 async function runBuildCheck(entryKey) {
   logs.push(`Starting build check for entry: ${entryKey}`)
+  
+  // 先扫描入口，确保 entries.json 是最新的
+  const scanResult = await scanEntries()
+  if (!scanResult.success) {
+    return {
+      status: 'FAILED',
+      message: 'Failed to scan entries before build',
+      errors: ['Entry scanning failed'],
+      logs: []
+    }
+  }
   
   return new Promise((resolve) => {
     const buildErrors = []
