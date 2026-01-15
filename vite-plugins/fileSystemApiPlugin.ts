@@ -520,19 +520,62 @@ export function fileSystemApiPlugin(): Plugin {
                     }
                   }
 
-                  // Google AI Studio 项目
+                  // Google AI Studio 项目：自动执行预处理脚本（同步等待完成）
                   if (uploadType === 'google_aistudio') {
-                    const ruleFile = '/rules/ai-studio-project-converter.md';
-                    const promptTemplate = `请根据 ${ruleFile} 的指导，将上传的 Google AI Studio 项目（位于 temp/${extractDirName}）转换为 Axhub ${targetType === 'pages' ? '页面' : '元素'}。`;
+                    const scriptPath = path.join(projectRoot, 'scripts', 'ai-studio-converter.mjs');
+                    const pageName = basename
+                      .replace(/[^a-z0-9-]/gi, '-')
+                      .replace(/-+/g, '-')
+                      .replace(/^-|-$/g, '')
+                      .toLowerCase();
                     
-                    return sendJSON(res, 200, {
-                      success: true,
-                      uploadType,
-                      filePath: `temp/${extractDirName}`,
-                      ruleFile,
-                      prompt: promptTemplate,
-                      message: '文件已解压到 temp 目录，请复制 Prompt 让 AI 处理'
-                    });
+                    const command = `node "${scriptPath}" "${extractDir}" "${pageName}"`;
+                    
+                    console.log('[AI Studio 转换] 执行预处理脚本:', command);
+                    
+                    // 使用 execSync 同步执行，等待完成
+                    try {
+                      const output = execSync(command, {
+                        cwd: projectRoot,
+                        encoding: 'utf8',
+                        stdio: 'pipe'
+                      });
+                      
+                      console.log('[AI Studio 转换] 执行成功:', output);
+                      
+                      // 验证任务文档是否生成
+                      const tasksFilePath = path.join(projectRoot, 'src', targetType, pageName, '.ai-studio-tasks.md');
+                      if (!fs.existsSync(tasksFilePath)) {
+                        throw new Error('任务文档生成失败');
+                      }
+                      
+                      // 返回任务文档路径
+                      const tasksFileRelPath = `src/${targetType}/${pageName}/.ai-studio-tasks.md`;
+                      const ruleFile = '/rules/ai-studio-project-converter.md';
+                      
+                      return sendJSON(res, 200, {
+                        success: true,
+                        uploadType,
+                        pageName,
+                        tasksFile: tasksFileRelPath,
+                        ruleFile,
+                        prompt: `AI Studio 项目已上传并预处理完成。\n\n请阅读以下文件：\n1. 任务清单: ${tasksFileRelPath}\n2. 转换规范: ${ruleFile}\n\n然后根据任务清单完成转换工作。`,
+                        message: '预处理完成，请查看任务文档'
+                      });
+                    } catch (scriptError: any) {
+                      console.error('[AI Studio 转换] 执行失败:', scriptError);
+                      
+                      // 清理已创建的目录
+                      const pageDir = path.join(projectRoot, 'src', targetType, pageName);
+                      if (fs.existsSync(pageDir)) {
+                        fs.rmSync(pageDir, { recursive: true, force: true });
+                      }
+                      
+                      return sendJSON(res, 500, { 
+                        error: `预处理脚本执行失败: ${scriptError.message}`,
+                        details: scriptError.stderr || scriptError.stdout || scriptError.message
+                      });
+                    }
                   }
                 } catch (e: any) {
                   console.error('[文件系统 API] 解压失败:', e);
