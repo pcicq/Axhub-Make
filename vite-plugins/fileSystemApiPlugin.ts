@@ -462,26 +462,57 @@ export function fileSystemApiPlugin(): Plugin {
                   zip.extractAllTo(extractDir, true);
                   fs.unlinkSync(tempFilePath);
 
-                  // 生成 prompt
-                  let ruleFile = '';
-                  let promptTemplate = '';
-
+                  // V0 项目：自动执行预处理脚本
                   if (uploadType === 'v0') {
-                    ruleFile = '/rules/v0-project-converter.md';
-                    promptTemplate = `请根据 ${ruleFile} 的指导，将上传的 V0 项目（位于 temp/${extractDirName}）转换为 Axhub ${targetType === 'pages' ? '页面' : '元素'}。`;
-                  } else if (uploadType === 'google_aistudio') {
-                    ruleFile = '/rules/ai-studio-project-converter.md';
-                    promptTemplate = `请根据 ${ruleFile} 的指导，将上传的 Google AI Studio 项目（位于 temp/${extractDirName}）转换为 Axhub ${targetType === 'pages' ? '页面' : '元素'}。`;
+                    const scriptPath = path.join(projectRoot, 'scripts', 'v0-converter.mjs');
+                    const pageName = basename
+                      .replace(/[^a-z0-9-]/gi, '-')
+                      .replace(/-+/g, '-')
+                      .replace(/^-|-$/g, '')
+                      .toLowerCase();
+                    
+                    const command = `node "${scriptPath}" "${extractDir}" "${pageName}"`;
+                    
+                    console.log('[V0 转换] 执行预处理脚本:', command);
+                    
+                    exec(command, (error: any, stdout: any, stderr: any) => {
+                      if (error) {
+                        console.error('[V0 转换] 执行失败:', error);
+                      } else {
+                        console.log('[V0 转换] 完成:', stdout);
+                      }
+                      if (stderr) console.error('[V0 转换] 错误:', stderr);
+                    });
+
+                    // 返回任务文档路径
+                    const tasksFilePath = `src/${targetType}/${pageName}/.v0-tasks.md`;
+                    const ruleFile = '/rules/v0-project-converter.md';
+                    
+                    return sendJSON(res, 200, {
+                      success: true,
+                      uploadType,
+                      pageName,
+                      tasksFile: tasksFilePath,
+                      ruleFile,
+                      prompt: `V0 项目已上传并预处理完成。\n\n请阅读以下文件：\n1. 任务清单: ${tasksFilePath}\n2. 转换规范: ${ruleFile}\n\n然后根据任务清单完成转换工作。`,
+                      message: '预处理脚本已执行，请查看任务文档'
+                    });
                   }
 
-                  return sendJSON(res, 200, {
-                    success: true,
-                    uploadType,
-                    filePath: `temp/${extractDirName}`,
-                    ruleFile,
-                    prompt: promptTemplate,
-                    message: '文件已解压到 temp 目录，请复制 Prompt 让 AI 处理'
-                  });
+                  // Google AI Studio 项目
+                  if (uploadType === 'google_aistudio') {
+                    const ruleFile = '/rules/ai-studio-project-converter.md';
+                    const promptTemplate = `请根据 ${ruleFile} 的指导，将上传的 Google AI Studio 项目（位于 temp/${extractDirName}）转换为 Axhub ${targetType === 'pages' ? '页面' : '元素'}。`;
+                    
+                    return sendJSON(res, 200, {
+                      success: true,
+                      uploadType,
+                      filePath: `temp/${extractDirName}`,
+                      ruleFile,
+                      prompt: promptTemplate,
+                      message: '文件已解压到 temp 目录，请复制 Prompt 让 AI 处理'
+                    });
+                  }
                 } catch (e: any) {
                   console.error('[文件系统 API] 解压失败:', e);
                   return sendJSON(res, 500, { error: `解压失败: ${e.message}` });
