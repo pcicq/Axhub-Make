@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const workspaceRoot = path.resolve(__dirname, '..');
 const entriesPath = path.resolve(workspaceRoot, 'entries.json');
+const viteBin = path.resolve(workspaceRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
 if (!fs.existsSync(entriesPath)) {
   console.error('entries.json 不存在，请先运行 npm run prebuild 或 npm run build。');
@@ -30,13 +31,16 @@ if (fs.existsSync(distDir)) {
 
 for (const key of entryKeys) {
   console.log(`\n==== 构建入口: ${key} ====\n`);
-  const result = spawnSync('npx', ['vite', 'build'], {
+  const result = spawnSync(process.execPath, [viteBin, 'build'], {
     cwd: workspaceRoot,
     env: { ...process.env, ENTRY_KEY: key },
     stdio: 'inherit'
   });
 
   if (result.status !== 0) {
+    if (result.error) {
+      console.error(result.error);
+    }
     console.error(`构建 ${key} 失败，退出码 ${result.status}`);
     process.exit(result.status ?? 1);
   }
